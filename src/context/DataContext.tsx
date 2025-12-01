@@ -91,6 +91,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
             // Try to fetch system status or just products to verify connection
             const response = await fetch(`${baseUrl}/products?per_page=1`, { headers });
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error("Resposta inválida da API (não é JSON). Verifique a URL ou o Proxy.");
+            }
 
             if (!response.ok) {
                 if (response.status === 401) {
