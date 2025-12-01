@@ -8,7 +8,7 @@ import { Loader2, CheckCircle, RefreshCw, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
 
 export function SettingsPage() {
-    const { isConnected, isLoading, connect, disconnect, syncData, isFacebookConnected, connectFacebook, disconnectFacebook } = useData()
+    const { isConnected, isLoading, connect, disconnect, syncData, isFacebookConnected, connectFacebook, disconnectFacebook, isFbLoading } = useData()
     const [url, setUrl] = useState("")
     const [key, setKey] = useState("")
     const [secret, setSecret] = useState("")
@@ -148,7 +148,7 @@ export function SettingsPage() {
                                         Integração ativa.
                                     </p>
                                 </div>
-                                <Button variant="destructive" className="w-full max-w-xs" onClick={disconnectFacebook} disabled={isLoading}>
+                                <Button variant="destructive" className="w-full max-w-xs" onClick={disconnectFacebook} disabled={isFbLoading}>
                                     Desconectar
                                 </Button>
                             </div>
@@ -169,7 +169,7 @@ export function SettingsPage() {
                                         value={fbAppId}
                                         onChange={(e) => setFbAppId(e.target.value)}
                                         required
-                                        disabled={isLoading}
+                                        disabled={isFbLoading}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -181,12 +181,12 @@ export function SettingsPage() {
                                         value={fbAccessToken}
                                         onChange={(e) => setFbAccessToken(e.target.value)}
                                         required
-                                        disabled={isLoading}
+                                        disabled={isFbLoading}
                                     />
                                 </div>
-                                <Button type="submit" className="w-full" disabled={isLoading}>
-                                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    {isLoading ? "Conectando..." : "Conectar Facebook"}
+                                <Button type="submit" className="w-full" disabled={isFbLoading}>
+                                    {isFbLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {isFbLoading ? "Conectando..." : "Conectar Facebook"}
                                 </Button>
                             </form>
                         )}

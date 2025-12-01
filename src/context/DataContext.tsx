@@ -28,6 +28,7 @@ interface DataContextType {
     isConnected: boolean;
     isFacebookConnected: boolean;
     isLoading: boolean;
+    isFbLoading: boolean;
     data: DashboardData | null;
     connect: (creds: WooCommerceCredentials) => Promise<void>;
     disconnect: () => Promise<void>;
@@ -47,6 +48,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [isConnected, setIsConnected] = useState(false);
     const [isFacebookConnected, setIsFacebookConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isFbLoading, setIsFbLoading] = useState(false);
     const [data, setData] = useState<DashboardData | null>(null);
     const [lastSyncRange, setLastSyncRange] = useState<{ start?: Date; end?: Date } | null>(null);
 
@@ -172,8 +174,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
 
     const connectFacebook = async (creds: FacebookCredentials) => {
-        setIsLoading(true);
+        setIsFbLoading(true);
         try {
+            // Validate credentials with Facebook Graph API
+            const response = await fetch(`https://graph.facebook.com/me?access_token=${creds.accessToken}`);
+            if (!response.ok) {
+                throw new Error("Token de acesso inválido ou expirado.");
+            }
+            const fbData = await response.json();
+            if (!fbData.id) {
+                throw new Error("Não foi possível validar a conta do Facebook.");
+            }
+
             if (user) {
                 const { error } = await supabase
                     .from('profiles')
@@ -187,11 +199,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             }
             setFacebookCredentials(creds);
             setIsFacebookConnected(true);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to connect Facebook:", error);
             throw error;
         } finally {
-            setIsLoading(false);
+            setIsFbLoading(false);
         }
     };
 
@@ -451,7 +463,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             return [];
         }
     };
-
     return (
         <DataContext.Provider value={{
             credentials,
@@ -459,6 +470,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             isConnected,
             isFacebookConnected,
             isLoading,
+            isFbLoading,
             data,
             connect,
             disconnect,

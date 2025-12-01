@@ -8,27 +8,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Search, Download, Facebook, Eye, Edit, TrendingUp, DollarSign, ShoppingCart, Activity, Loader2, AlertCircle } from "lucide-react"
 import { facebookAdsService } from "../services/facebookAdsService"
 import type { CampaignData } from "../services/facebookAdsService"
-import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
+import { useNavigate } from "react-router-dom"
+import { useData } from "../context/DataContext"
 
 export function CampaignsPage() {
-    const [isConnected, setIsConnected] = useState(false)
-    const [isLoading, setIsLoading] = useState(false)
+    const { isFacebookConnected, isFbLoading } = useData()
+    const navigate = useNavigate()
     const [campaigns, setCampaigns] = useState<CampaignData[]>([])
     const [error, setError] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
-        const checkConnection = async () => {
-            const token = localStorage.getItem('fb_access_token')
-            if (token) {
-                setIsConnected(true)
-                await loadCampaigns(token)
-            }
+        if (isFacebookConnected) {
+            // In a real scenario, we would fetch campaigns here using the stored token
+            // For now, we can simulate or use the service if it supports it
+            // loadCampaigns()
         }
-
-        facebookAdsService.init().then(() => {
-            checkConnection()
-        })
-    }, [])
+    }, [isFacebookConnected])
 
     const loadCampaigns = async (token: string) => {
         setIsLoading(true)
@@ -54,35 +50,7 @@ export function CampaignsPage() {
         }
     }
 
-    const handleConnect = async () => {
-        setIsLoading(true)
-        setError(null)
-        try {
-            const authResponse = await facebookAdsService.login()
-            if (authResponse) {
-                setIsConnected(true)
-                await loadCampaigns(authResponse.accessToken)
-            }
-        } catch (err) {
-            console.error(err)
-            setError("Falha na conexão com o Facebook.")
-        } finally {
-            setIsLoading(false)
-        }
-    }
 
-    const handleDisconnect = async () => {
-        setIsLoading(true)
-        try {
-            await facebookAdsService.logout()
-            setIsConnected(false)
-            setCampaigns([])
-        } catch (err) {
-            console.error(err)
-        } finally {
-            setIsLoading(false)
-        }
-    }
 
     // Calculate totals
     const totalSpend = campaigns.reduce((acc, curr) => acc + curr.spend, 0)
@@ -94,15 +62,11 @@ export function CampaignsPage() {
     const totalRoas = totalSpend > 0 ? totalSalesValue / totalSpend : 0
     const totalCpa = totalSales > 0 ? totalSpend / totalSales : 0
 
-    if (!isConnected) {
+    if (!isFacebookConnected) {
         return (
             <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between p-6 border-b">
                     <h1 className="text-2xl font-bold">Campanhas</h1>
-                    <Button onClick={handleConnect} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white">
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        + Conectar Facebook Ads
-                    </Button>
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
                     <div className="bg-blue-100 p-4 rounded-full mb-4">
@@ -110,17 +74,10 @@ export function CampaignsPage() {
                     </div>
                     <h2 className="text-xl font-semibold mb-2">Conecte sua conta do Facebook Ads</h2>
                     <p className="max-w-md mb-6">
-                        Conecte sua conta para visualizar suas campanhas, métricas de desempenho e otimizar seus anúncios diretamente do dashboard.
+                        Para visualizar suas campanhas, conecte sua conta do Facebook nas configurações.
                     </p>
-                    {error && (
-                        <Alert variant="destructive" className="mb-4 max-w-md text-left">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertTitle>Erro</AlertTitle>
-                            <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                    )}
-                    <Button onClick={handleConnect} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white">
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Conectar Agora"}
+                    <Button onClick={() => navigate("/settings")} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        Ir para Configurações
                     </Button>
                 </div>
             </div>
@@ -132,9 +89,6 @@ export function CampaignsPage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold">Campanhas</h1>
                 <div className="flex gap-2">
-                    <Button onClick={handleDisconnect} variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
-                        Desconectar Conta
-                    </Button>
                     <Button variant="outline">
                         <Download className="mr-2 h-4 w-4" />
                         Exportar
@@ -142,13 +96,7 @@ export function CampaignsPage() {
                 </div>
             </div>
 
-            {error && (
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Erro</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
-                </Alert>
-            )}
+
 
             {/* Metric Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
