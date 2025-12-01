@@ -38,11 +38,9 @@ export function CampaignsPage() {
             } else {
                 setError("Nenhuma conta de anúncios encontrada.")
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err)
-            setError("Erro ao carregar campanhas. Tente reconectar.")
-            // If token is invalid, maybe disconnect?
-            // setIsConnected(false)
+            setError(err.message || "Erro ao carregar campanhas. Tente reconectar.")
         } finally {
             setIsLoading(false)
         }

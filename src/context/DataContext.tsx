@@ -242,14 +242,39 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const syncData = async (credsToUse = credentials, startDate?: Date, endDate?: Date, force = false) => {
         if (!credsToUse) return;
 
-        // Check if we already have data for this range
+        // Check if we already have data for this range (In-Memory)
         if (!force && data && lastSyncRange?.start && lastSyncRange?.end && startDate && endDate) {
             const isSameStart = startDate.toISOString().split('T')[0] === lastSyncRange.start.toISOString().split('T')[0];
             const isSameEnd = endDate.toISOString().split('T')[0] === lastSyncRange.end.toISOString().split('T')[0];
 
             if (isSameStart && isSameEnd) {
-                console.log('Skipping sync: Data already loaded for this range');
+                console.log('Skipping sync: Data already loaded for this range (Memory)');
                 return;
+            }
+        }
+
+        // Check Local Storage Cache
+        if (!force && user) {
+            const cacheKey = `dashboard_data_${user.id}`;
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                try {
+                    const { timestamp, data: cachedData, range } = JSON.parse(cached);
+                    // Cache validity: 1 hour (can be adjusted)
+                    const now = new Date().getTime();
+                    if (now - timestamp < 60 * 60 * 1000) {
+                        console.log('Loading data from Local Storage Cache');
+                        setData(cachedData);
+                        if (range?.start && range?.end) {
+                            setLastSyncRange({ start: new Date(range.start), end: new Date(range.end) });
+                        }
+                        return;
+                    } else {
+                        console.log('Cache expired');
+                    }
+                } catch (e) {
+                    console.error('Error parsing cache', e);
+                }
             }
         }
 
@@ -438,14 +463,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 console.error('Error fetching customers:', e);
             }
 
-            setData({
+            const newData = {
                 sales: salesData,
                 products: productsData,
                 productsList: productsList,
                 orders: ordersData,
                 customers: { total: totalCustomers },
                 customersList: customersList,
-            });
+            };
+
+            setData(newData);
+
+            // Save to Local Storage Cache
+            if (user) {
+                const cacheKey = `dashboard_data_${user.id}`;
+                const cachePayload = {
+                    timestamp: new Date().getTime(),
+                    data: newData,
+                    range: { start: startDate, end: endDate }
+                };
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify(cachePayload));
+                    console.log('Data saved to Local Storage Cache');
+                } catch (e) {
+                    console.error('Failed to save to cache (quota exceeded?)', e);
+                }
+            }
 
             if (startDate && endDate) {
                 setLastSyncRange({ start: startDate, end: endDate });

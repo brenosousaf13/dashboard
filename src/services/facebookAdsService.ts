@@ -69,20 +69,27 @@ export const facebookAdsService = {
     },
 
     getAdAccounts: async (accessToken: string) => {
+        console.log('FB Service: Fetching Ad Accounts...');
         const response = await fetch(`https://graph.facebook.com/${FACEBOOK_GRAPH_API_VERSION}/me/adaccounts?fields=name,id&access_token=${accessToken}`);
         const data = await response.json();
+        console.log('FB Service: Ad Accounts Response:', data);
         return data.data;
     },
 
     getCampaigns: async (adAccountId: string, accessToken: string): Promise<CampaignData[]> => {
         try {
             // Fetch campaigns with basic fields
+            console.log(`FB Service: Fetching campaigns for account ${adAccountId}...`);
             const campaignsResponse = await fetch(
                 `https://graph.facebook.com/${FACEBOOK_GRAPH_API_VERSION}/${adAccountId}/campaigns?fields=name,status,objective&access_token=${accessToken}`
             );
             const campaignsData = await campaignsResponse.json();
+            console.log('FB Service: Campaigns Response:', campaignsData);
 
-            if (!campaignsData.data) return [];
+            if (!campaignsData.data) {
+                console.warn('FB Service: No campaigns data found in response');
+                return [];
+            }
 
             // Fetch insights for each campaign
             const campaignsWithInsights = await Promise.all(campaignsData.data.map(async (campaign: any) => {
@@ -90,6 +97,7 @@ export const facebookAdsService = {
                     `https://graph.facebook.com/${FACEBOOK_GRAPH_API_VERSION}/${campaign.id}/insights?fields=spend,conversions,cost_per_conversion,ctr&date_preset=maximum&access_token=${accessToken}`
                 );
                 const insightsData = await insightsResponse.json();
+                console.log(`FB Service: Insights for ${campaign.id}:`, insightsData);
                 const insights = insightsData.data && insightsData.data[0] ? insightsData.data[0] : null;
 
                 // Map to our internal format
