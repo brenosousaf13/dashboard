@@ -8,6 +8,11 @@ interface WooCommerceCredentials {
     consumerSecret: string;
 }
 
+interface FacebookCredentials {
+    appId: string;
+    accessToken: string;
+}
+
 interface DashboardData {
     sales: any[];
     products: any[]; // Top sellers from analytics
@@ -19,11 +24,15 @@ interface DashboardData {
 
 interface DataContextType {
     credentials: WooCommerceCredentials | null;
+    facebookCredentials: FacebookCredentials | null;
     isConnected: boolean;
+    isFacebookConnected: boolean;
     isLoading: boolean;
     data: DashboardData | null;
     connect: (creds: WooCommerceCredentials) => Promise<void>;
     disconnect: () => Promise<void>;
+    connectFacebook: (creds: FacebookCredentials) => Promise<void>;
+    disconnectFacebook: () => Promise<void>;
     syncData: (credsToUse?: WooCommerceCredentials | null, startDate?: Date, endDate?: Date, force?: boolean) => Promise<void>;
     getProductVariations: (productId: number) => Promise<any[]>;
     lastSyncRange: { start?: Date; end?: Date } | null;
@@ -34,7 +43,9 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: React.ReactNode }) {
     const { user } = useAuth();
     const [credentials, setCredentials] = useState<WooCommerceCredentials | null>(null);
+    const [facebookCredentials, setFacebookCredentials] = useState<FacebookCredentials | null>(null);
     const [isConnected, setIsConnected] = useState(false);
+    const [isFacebookConnected, setIsFacebookConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [data, setData] = useState<DashboardData | null>(null);
     const [lastSyncRange, setLastSyncRange] = useState<{ start?: Date; end?: Date } | null>(null);
@@ -44,7 +55,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             fetchProfile();
         } else {
             setCredentials(null);
+            setFacebookCredentials(null);
             setIsConnected(false);
+            setIsFacebookConnected(false);
             setData(null);
         }
     }, [user]);
@@ -54,7 +67,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         try {
             const { data } = await supabase
                 .from('profiles')
-                .select('woocommerce_url, woocommerce_consumer_key, woocommerce_consumer_secret')
+                .select('woocommerce_url, woocommerce_consumer_key, woocommerce_consumer_secret, facebook_app_id, facebook_access_token')
                 .eq('id', user.id)
                 .single();
 
@@ -66,6 +79,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 };
                 setCredentials(creds);
                 setIsConnected(true);
+                // Auto-sync data when credentials are loaded
+                syncData(creds);
+            }
+
+            if (data && data.facebook_app_id && data.facebook_access_token) {
+                setFacebookCredentials({
+                    appId: data.facebook_app_id,
+                    accessToken: data.facebook_access_token
+                });
+                setIsFacebookConnected(true);
             }
         } catch (error) {
             console.error('Error fetching profile:', error);
@@ -146,6 +169,44 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setCredentials(null);
         setIsConnected(false);
         setData(null);
+    };
+
+    const connectFacebook = async (creds: FacebookCredentials) => {
+        setIsLoading(true);
+        try {
+            if (user) {
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({
+                        facebook_app_id: creds.appId,
+                        facebook_access_token: creds.accessToken
+                    })
+                    .eq('id', user.id);
+
+                if (error) throw error;
+            }
+            setFacebookCredentials(creds);
+            setIsFacebookConnected(true);
+        } catch (error) {
+            console.error("Failed to connect Facebook:", error);
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const disconnectFacebook = async () => {
+        if (user) {
+            await supabase
+                .from('profiles')
+                .update({
+                    facebook_app_id: null,
+                    facebook_access_token: null
+                })
+                .eq('id', user.id);
+        }
+        setFacebookCredentials(null);
+        setIsFacebookConnected(false);
     };
 
     const syncData = async (credsToUse = credentials, startDate?: Date, endDate?: Date, force = false) => {
@@ -392,7 +453,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <DataContext.Provider value={{ credentials, isConnected, isLoading, data, connect, disconnect, syncData, getProductVariations, lastSyncRange }}>
+        <DataContext.Provider value={{
+            credentials,
+            facebookCredentials,
+            isConnected,
+            isFacebookConnected,
+            isLoading,
+            data,
+            connect,
+            disconnect,
+            connectFacebook,
+            disconnectFacebook,
+            syncData,
+            getProductVariations,
+            lastSyncRange
+        }}>
             {children}
         </DataContext.Provider>
     );

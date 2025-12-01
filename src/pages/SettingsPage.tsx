@@ -8,11 +8,14 @@ import { Loader2, CheckCircle, RefreshCw, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
 
 export function SettingsPage() {
-    const { isConnected, isLoading, connect, disconnect, syncData } = useData()
+    const { isConnected, isLoading, connect, disconnect, syncData, isFacebookConnected, connectFacebook, disconnectFacebook } = useData()
     const [url, setUrl] = useState("")
     const [key, setKey] = useState("")
     const [secret, setSecret] = useState("")
+    const [fbAppId, setFbAppId] = useState("")
+    const [fbAccessToken, setFbAccessToken] = useState("")
     const [error, setError] = useState<string | null>(null)
+    const [fbError, setFbError] = useState<string | null>(null)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -29,6 +32,16 @@ export function SettingsPage() {
             await syncData()
         } catch (err) {
             console.error("Sync failed manually", err)
+        }
+    }
+
+    const handleFacebookSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setFbError(null)
+        try {
+            await connectFacebook({ appId: fbAppId, accessToken: fbAccessToken })
+        } catch (err: any) {
+            setFbError(err.message || "Erro ao conectar Facebook.")
         }
     }
 
@@ -112,6 +125,68 @@ export function SettingsPage() {
                                 <Button type="submit" className="w-full" disabled={isLoading}>
                                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     {isLoading ? "Conectando..." : "Conectar Loja"}
+                                </Button>
+                            </form>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="col-span-2">
+                    <CardHeader>
+                        <CardTitle>Conexão Facebook Ads</CardTitle>
+                        <CardDescription>
+                            Conecte sua conta de anúncios para importar dados de campanhas.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {isFacebookConnected ? (
+                            <div className="flex flex-col items-center justify-center space-y-4 py-6">
+                                <CheckCircle className="h-16 w-16 text-blue-500" />
+                                <div className="text-center">
+                                    <h3 className="text-lg font-medium">Facebook Conectado</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Integração ativa.
+                                    </p>
+                                </div>
+                                <Button variant="destructive" className="w-full max-w-xs" onClick={disconnectFacebook} disabled={isLoading}>
+                                    Desconectar
+                                </Button>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleFacebookSubmit} className="space-y-4">
+                                {fbError && (
+                                    <Alert variant="destructive">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <AlertTitle>Erro</AlertTitle>
+                                        <AlertDescription>{fbError}</AlertDescription>
+                                    </Alert>
+                                )}
+                                <div className="space-y-2">
+                                    <Label htmlFor="fbAppId">App ID</Label>
+                                    <Input
+                                        id="fbAppId"
+                                        placeholder="1234567890"
+                                        value={fbAppId}
+                                        onChange={(e) => setFbAppId(e.target.value)}
+                                        required
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="fbAccessToken">Access Token</Label>
+                                    <Input
+                                        id="fbAccessToken"
+                                        placeholder="EAA..."
+                                        type="password"
+                                        value={fbAccessToken}
+                                        onChange={(e) => setFbAccessToken(e.target.value)}
+                                        required
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                                <Button type="submit" className="w-full" disabled={isLoading}>
+                                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {isLoading ? "Conectando..." : "Conectar Facebook"}
                                 </Button>
                             </form>
                         )}
