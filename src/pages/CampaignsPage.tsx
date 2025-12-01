@@ -12,19 +12,17 @@ import { useNavigate } from "react-router-dom"
 import { useData } from "../context/DataContext"
 
 export function CampaignsPage() {
-    const { isFacebookConnected, isFbLoading } = useData()
+    const { isFacebookConnected, isFbLoading, facebookCredentials } = useData()
     const navigate = useNavigate()
     const [campaigns, setCampaigns] = useState<CampaignData[]>([])
     const [error, setError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
-        if (isFacebookConnected) {
-            // In a real scenario, we would fetch campaigns here using the stored token
-            // For now, we can simulate or use the service if it supports it
-            // loadCampaigns()
+        if (isFacebookConnected && facebookCredentials?.accessToken) {
+            loadCampaigns(facebookCredentials.accessToken)
         }
-    }, [isFacebookConnected])
+    }, [isFacebookConnected, facebookCredentials])
 
     const loadCampaigns = async (token: string) => {
         setIsLoading(true)

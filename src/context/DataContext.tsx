@@ -65,15 +65,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }, [user]);
 
     const fetchProfile = async () => {
-        if (!user) return;
+        if (!user) {
+            console.log('fetchProfile: No user found');
+            return;
+        }
+        console.log('fetchProfile: Fetching for user', user.id);
         try {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from('profiles')
                 .select('woocommerce_url, woocommerce_consumer_key, woocommerce_consumer_secret, facebook_app_id, facebook_access_token')
                 .eq('id', user.id)
                 .single();
 
+            if (error) {
+                console.error('fetchProfile: Supabase error:', error);
+                return;
+            }
+
+            console.log('fetchProfile: Data received:', data);
+
             if (data && data.woocommerce_url && data.woocommerce_consumer_key && data.woocommerce_consumer_secret) {
+                console.log('fetchProfile: Found WooCommerce credentials');
                 const creds = {
                     url: data.woocommerce_url,
                     consumerKey: data.woocommerce_consumer_key,
@@ -82,15 +94,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 setCredentials(creds);
                 setIsConnected(true);
                 // Auto-sync data when credentials are loaded
+                console.log('fetchProfile: Triggering syncData');
                 syncData(creds);
+            } else {
+                console.log('fetchProfile: No WooCommerce credentials found');
             }
 
             if (data && data.facebook_app_id && data.facebook_access_token) {
+                console.log('fetchProfile: Found Facebook credentials');
                 setFacebookCredentials({
                     appId: data.facebook_app_id,
                     accessToken: data.facebook_access_token
                 });
                 setIsFacebookConnected(true);
+            } else {
+                console.log('fetchProfile: No Facebook credentials found');
             }
         } catch (error) {
             console.error('Error fetching profile:', error);
