@@ -30,11 +30,23 @@ export function CampaignsPage() {
         try {
             const accounts = await facebookAdsService.getAdAccounts(token)
             if (accounts && accounts.length > 0) {
-                // For simplicity, using the first ad account. 
-                // In a real app, we might want a selector if multiple accounts exist.
-                const adAccountId = accounts[0].id
-                const data = await facebookAdsService.getCampaigns(adAccountId, token)
-                setCampaigns(data)
+                // Fetch campaigns from the first 5 accounts to find data
+                // This handles cases where the main account isn't the first one
+                const accountsToCheck = accounts.slice(0, 5);
+                let allCampaigns: CampaignData[] = [];
+
+                for (const account of accountsToCheck) {
+                    const accountCampaigns = await facebookAdsService.getCampaigns(account.id, token);
+                    if (accountCampaigns.length > 0) {
+                        allCampaigns = [...allCampaigns, ...accountCampaigns];
+                    }
+                }
+
+                if (allCampaigns.length > 0) {
+                    setCampaigns(allCampaigns)
+                } else {
+                    setError("Nenhuma campanha encontrada nas suas contas de anúncio.")
+                }
             } else {
                 setError("Nenhuma conta de anúncios encontrada.")
             }

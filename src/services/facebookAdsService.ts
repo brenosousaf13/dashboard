@@ -78,61 +78,76 @@ export const facebookAdsService = {
 
     getCampaigns: async (adAccountId: string, accessToken: string): Promise<CampaignData[]> => {
         try {
-            // Fetch campaigns with basic fields
             console.log(`FB Service: Fetching campaigns for account ${adAccountId}...`);
-            const campaignsResponse = await fetch(
-                `https://graph.facebook.com/${FACEBOOK_GRAPH_API_VERSION}/${adAccountId}/campaigns?fields=name,status,objective&access_token=${accessToken}`
-            );
-            const campaignsData = await campaignsResponse.json();
-            console.log('FB Service: Campaigns Response:', campaignsData);
 
-            if (!campaignsData.data) {
-                console.warn('FB Service: No campaigns data found in response');
+            // Define fields including nested insights
+            const fields = [
+                'id',
+                'name',
+                'status',
+                'objective',
+                'insights{spend,impressions,clicks,ctr,conversions,cost_per_conversion,cpm,actions}'
+            ].join(',');
+
+            // Default to last 30 days for relevance, or maximum if needed. 
+            // Using a specific range helps avoid timeouts on large accounts.
+            const today = new Date();
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+
+            const timeRange = {
+                since: thirtyDaysAgo.toISOString().split('T')[0],
+                until: today.toISOString().split('T')[0]
+            };
+
+            const url = `https://graph.facebook.com/${FACEBOOK_GRAPH_API_VERSION}/${adAccountId}/campaigns?fields=${fields}&time_range=${JSON.stringify(timeRange)}&access_token=${accessToken}`;
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            console.log(`FB Service: Campaigns Response for ${adAccountId}:`, data);
+
+            if (!data.data) {
+                if (data.error) {
+                    console.error(`FB Service: Error for account ${adAccountId}:`, data.error);
+                }
                 return [];
             }
 
-            // Fetch insights for each campaign
-            const campaignsWithInsights = await Promise.all(campaignsData.data.map(async (campaign: any) => {
-                const insightsResponse = await fetch(
-                    `https://graph.facebook.com/${FACEBOOK_GRAPH_API_VERSION}/${campaign.id}/insights?fields=spend,conversions,cost_per_conversion,ctr&date_preset=maximum&access_token=${accessToken}`
-                );
-                const insightsData = await insightsResponse.json();
-                console.log(`FB Service: Insights for ${campaign.id}:`, insightsData);
-                const insights = insightsData.data && insightsData.data[0] ? insightsData.data[0] : null;
+            return data.data.map((campaign: any) => {
+                const insights = campaign.insights?.data?.[0] || {};
 
-                // Map to our internal format
-                const spend = insights ? parseFloat(insights.spend) : 0;
-                const conversions = insights ? parseFloat(insights.conversions) || 0 : 0; // Conversions might be an array or object depending on action type, simplifying for now
-                // Note: 'conversions' field in insights often requires breakdown by action_type. 
-                // For simplicity in this 'v1', we might check 'actions' list if 'conversions' isn't direct.
-                // However, the user prompt suggested 'conversions' field. We will stick to that or fallback.
+                // Parse conversions (can be complex in FB API)
+                // 'conversions' field usually returns a list of actions. 
+                // For simplicity, we'll try to use the 'conversions' metric if available directly, 
+                // or sum up 'actions' that are 'purchase' or 'omni_purchase'.
+                let conversions = 0;
+                if (insights.conversions) {
+                    // If it's a number/string
+                    conversions = parseFloat(insights.conversions) || 0;
+                } else if (insights.actions) {
+                    const purchaseAction = insights.actions.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase');
+                    conversions = purchaseAction ? parseFloat(purchaseAction.value) : 0;
+                }
 
-                const cpa = insights ? parseFloat(insights.cost_per_conversion) || 0 : 0;
-                const ctr = insights ? parseFloat(insights.ctr) : 0;
-
-                // Mock ROAS calculation as we don't have revenue data from FB directly easily without pixel setup
-                // User suggested: ROAS = (Vendas Totais / Gasto Total). 
-                // We will use a mock ticket average if not available or just 0.
-                const mockAverageTicket = 150;
-                const salesValue = conversions * mockAverageTicket;
+                const spend = parseFloat(insights.spend) || 0;
+                const salesValue = conversions * 150; // Mock ticket
                 const roas = spend > 0 ? salesValue / spend : 0;
 
                 return {
                     id: campaign.id,
                     name: campaign.name,
                     status: campaign.status.toLowerCase() === 'active' ? 'active' : 'paused',
-                    spend,
+                    spend: spend,
                     sales: conversions,
                     roas: parseFloat(roas.toFixed(2)),
-                    cpa: parseFloat(cpa.toFixed(2)),
-                    ctr: parseFloat(ctr.toFixed(2))
+                    cpa: parseFloat(insights.cost_per_conversion) || 0,
+                    ctr: parseFloat(insights.ctr) || 0
                 };
-            }));
-
-            return campaignsWithInsights;
+            });
         } catch (error) {
-            console.error("Error fetching campaigns:", error);
-            throw error;
+            console.error(`Error fetching campaigns for account ${adAccountId}:`, error);
+            return [];
         }
     },
 
