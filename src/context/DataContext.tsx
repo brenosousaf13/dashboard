@@ -153,12 +153,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             if (user) {
                 const { error } = await supabase
                     .from('profiles')
-                    .update({
+                    .upsert({
+                        id: user.id,
                         woocommerce_url: url,
                         woocommerce_consumer_key: consumerKey,
                         woocommerce_consumer_secret: consumerSecret
-                    })
-                    .eq('id', user.id);
+                    });
 
                 if (error) throw error;
             }
@@ -207,11 +207,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             if (user) {
                 const { error } = await supabase
                     .from('profiles')
-                    .update({
+                    .upsert({
+                        id: user.id,
                         facebook_app_id: creds.appId,
                         facebook_access_token: creds.accessToken
-                    })
-                    .eq('id', user.id);
+                    });
 
                 if (error) throw error;
             }
