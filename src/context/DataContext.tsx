@@ -78,6 +78,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 .single();
 
             if (error) {
+                // Ignore 406 error (Not Acceptable) which happens when the row doesn't exist yet
+                if (error.code === 'PGRST116' || error.code === '406' || (error as any).status === 406) {
+                    console.log('fetchProfile: No profile found (new user)');
+                    return;
+                }
                 console.error('fetchProfile: Supabase error:', error);
                 return;
             }
@@ -123,17 +128,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             const auth = btoa(`${consumerKey}:${consumerSecret}`);
 
             // Handle CORS proxy for development
-            let baseUrl = `${url.replace(/\/$/, '')}/wp-json/wc/v3`;
-            if (url.includes('stillgerjeans.com.br')) {
-                baseUrl = `/proxy-wc/wp-json/wc/v3`;
-            }
+            // Use Vercel Serverless Proxy for all requests to avoid CORS
+            // The proxy expects the target URL as a query param 'url'
+            const targetUrl = `${url.replace(/\/$/, '')}/wp-json/wc/v3`;
+            const baseUrl = `/api/proxy?url=${encodeURIComponent(targetUrl)}`;
 
             const headers = {
                 Authorization: `Basic ${auth}`,
             };
 
             // Try to fetch system status or just products to verify connection
-            const response = await fetch(`${baseUrl}/products?per_page=1`, { headers });
+            // Note: For the proxy, we append the specific endpoint to the encoded target URL
+            const testUrl = `/api/proxy?url=${encodeURIComponent(`${targetUrl}/products?per_page=1`)}`;
+            const response = await fetch(testUrl, { headers });
             const contentType = response.headers.get("content-type");
             if (!contentType || !contentType.includes("application/json")) {
                 throw new Error("Resposta inválida da API (não é JSON). Verifique a URL ou o Proxy.");
@@ -284,10 +291,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             const auth = btoa(`${consumerKey}:${consumerSecret}`);
 
             // Handle CORS proxy for development
-            let baseUrl = `${url.replace(/\/$/, '')}/wp-json/wc/v3`;
-            if (url.includes('stillgerjeans.com.br')) {
-                baseUrl = `/proxy-wc/wp-json/wc/v3`;
-            }
+            // Use Vercel Serverless Proxy
+            const targetUrl = `${url.replace(/\/$/, '')}/wp-json/wc/v3`;
+
+            // Helper to construct proxy URL
+            const getProxyUrl = (endpoint: string, queryParams: string = '') => {
+                const fullUrl = `${targetUrl}${endpoint}${queryParams ? '?' + queryParams : ''}`;
+                return `/api/proxy?url=${encodeURIComponent(fullUrl)}`;
+            };
+
+            // For Analytics, the base path is different (/wp-json/wc-analytics)
+            const analyticsTargetUrl = `${url.replace(/\/$/, '')}/wp-json/wc-analytics`;
+            const getAnalyticsProxyUrl = (endpoint: string, queryParams: string = '') => {
+                const fullUrl = `${analyticsTargetUrl}${endpoint}${queryParams ? '?' + queryParams : ''}`;
+                return `/api/proxy?url=${encodeURIComponent(fullUrl)}`;
+            };
 
             const headers = {
                 Authorization: `Basic ${auth}`,
@@ -303,9 +321,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Fetch Sales (Analytics)
             // Note: Analytics API is at /wp-json/wc-analytics, not /wp-json/wc/v3/wc-analytics
             // We need to strip /wc/v3 from baseUrl or construct a new one
-            const analyticsBaseUrl = baseUrl.replace('/wc/v3', '');
-            const salesUrl = `${analyticsBaseUrl}/wc-analytics/reports/revenue/stats?${params.toString()}`;
-            console.log('Fetching Analytics URL:', salesUrl);
+            const salesUrl = getAnalyticsProxyUrl('/reports/revenue/stats', params.toString());
+            console.log('Fetching Analytics URL via Proxy:', salesUrl);
             const salesRes = await fetch(salesUrl, { headers });
             if (!salesRes.ok) throw new Error('Failed to fetch sales stats');
             const analyticsData = await salesRes.json();
@@ -340,7 +357,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 if (endDate) productsParams.append('before', endDate.toISOString());
 
                 // Use Analytics API for products to get date-filtered performance
-                const productsRes = await fetch(`${analyticsBaseUrl}/wc-analytics/reports/products?${productsParams.toString()}`, { headers });
+                // Use Analytics API for products to get date-filtered performance
+                const productsUrl = getAnalyticsProxyUrl('/reports/products', productsParams.toString());
+                const productsRes = await fetch(productsUrl, { headers });
 
                 if (productsRes.ok) {
                     productsData = await productsRes.json();
@@ -364,7 +383,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     productsListParams.append('page', page.toString());
                     productsListParams.append('status', 'any');
 
-                    const productsListRes = await fetch(`${baseUrl}/products?${productsListParams.toString()}`, { headers });
+                    const productsListRes = await fetch(getProxyUrl('/products', productsListParams.toString()), { headers });
 
                     if (productsListRes.ok) {
                         const pageProducts = await productsListRes.json();
@@ -398,7 +417,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     if (startDate) ordersParams.append('after', startDate.toISOString());
                     if (endDate) ordersParams.append('before', endDate.toISOString());
 
-                    const ordersRes = await fetch(`${baseUrl}/orders?${ordersParams.toString()}`, { headers });
+                    const ordersRes = await fetch(getProxyUrl('/orders', ordersParams.toString()), { headers });
 
                     if (ordersRes.ok) {
                         const pageOrders = await ordersRes.json();
@@ -427,7 +446,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 let hasMore = true;
 
                 // First fetch to get total and first page
-                const firstRes = await fetch(`${baseUrl}/customers?per_page=100&page=1`, { headers });
+                const firstRes = await fetch(getProxyUrl('/customers', 'per_page=100&page=1'), { headers });
                 if (firstRes.ok) {
                     const totalHeader = firstRes.headers.get('X-WP-Total');
                     totalCustomers = totalHeader ? parseInt(totalHeader) : 0;
@@ -444,7 +463,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 while (hasMore) {
-                    const customersRes = await fetch(`${baseUrl}/customers?per_page=100&page=${page}`, { headers });
+                    const customersRes = await fetch(getProxyUrl('/customers', `per_page=100&page=${page}`), { headers });
                     if (customersRes.ok) {
                         const pageCustomers = await customersRes.json();
                         if (pageCustomers.length > 0) {
@@ -507,14 +526,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             const { url, consumerKey, consumerSecret } = credentials;
             const auth = btoa(`${consumerKey}:${consumerSecret}`);
 
-            let baseUrl = `${url.replace(/\/$/, '')}/wp-json/wc/v3`;
-            if (url.includes('stillgerjeans.com.br')) {
-                baseUrl = `/proxy-wc/wp-json/wc/v3`;
-            }
+            const targetUrl = `${url.replace(/\/$/, '')}/wp-json/wc/v3`;
+            const fullUrl = `${targetUrl}/products/${productId}/variations?per_page=100`;
+            const proxyUrl = `/api/proxy?url=${encodeURIComponent(fullUrl)}`;
 
             const headers = { Authorization: `Basic ${auth}` };
 
-            const response = await fetch(`${baseUrl}/products/${productId}/variations?per_page=100`, { headers });
+            const response = await fetch(proxyUrl, { headers });
             if (response.ok) {
                 return await response.json();
             }

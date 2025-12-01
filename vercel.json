@@ -1,10 +1,6 @@
 {
     "rewrites": [
         {
-            "source": "/proxy-wc/:path*",
-            "destination": "https://stillgerjeans.com.br/:path*"
-        },
-        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
