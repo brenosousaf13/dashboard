@@ -1,5 +1,5 @@
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useData } from "@/context/DataContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,12 +12,19 @@ import { Eye, Edit, Download, RefreshCw, CreditCard, TrendingUp } from "lucide-r
 import { subDays, format, parseISO, differenceInDays } from "date-fns"
 
 export function CustomersPage() {
-    const { data, syncData, isLoading } = useData()
+    const { data, syncCatalog, isLoading, credentials } = useData()
     const [searchTerm, setSearchTerm] = useState("")
     const [segmentFilter, setSegmentFilter] = useState("all")
     const [statusFilter, setStatusFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
     const itemsPerPage = 10
+
+    // Ensure catalog is loaded on mount
+    useEffect(() => {
+        if (credentials) {
+            syncCatalog(credentials)
+        }
+    }, [credentials])
 
     const customers = data?.customersList || []
     const orders = data?.orders || []
@@ -110,7 +117,7 @@ export function CustomersPage() {
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => syncData()} disabled={isLoading}>
+                    <Button variant="outline" onClick={() => syncCatalog(credentials, true)} disabled={isLoading}>
                         <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                         Sincronizar
                     </Button>

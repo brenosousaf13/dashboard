@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useData } from "@/context/DataContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,7 +12,7 @@ import type { DateRange } from "react-day-picker"
 import { subDays } from "date-fns"
 
 export function ProductsPage() {
-    const { data, syncData, isLoading, getProductVariations, credentials } = useData()
+    const { data, syncCatalog, syncAnalytics, isLoading, getProductVariations, credentials } = useData()
     const [searchTerm, setSearchTerm] = useState("")
     const [categoryFilter, setCategoryFilter] = useState("all")
     const [statusFilter, setStatusFilter] = useState("all")
@@ -20,6 +20,13 @@ export function ProductsPage() {
         from: subDays(new Date(), 30),
         to: new Date(),
     })
+
+    // Ensure catalog is loaded on mount
+    useEffect(() => {
+        if (credentials) {
+            syncCatalog(credentials)
+        }
+    }, [credentials])
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1)
@@ -103,7 +110,7 @@ export function ProductsPage() {
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold tracking-tight">Produtos</h1>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => syncData()} disabled={isLoading}>
+                    <Button variant="outline" onClick={() => syncCatalog(credentials, true)} disabled={isLoading}>
                         <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                         Sincronizar Catálogo
                     </Button>
@@ -383,7 +390,7 @@ export function ProductsPage() {
                 onDateRangeChange={(range) => {
                     setDateRange(range)
                     if (range?.from && range?.to) {
-                        syncData(credentials, range.from, range.to)
+                        syncAnalytics(credentials, range.from, range.to)
                     }
                 }}
             />

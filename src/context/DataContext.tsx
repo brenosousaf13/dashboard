@@ -35,6 +35,8 @@ interface DataContextType {
     connectFacebook: (creds: FacebookCredentials) => Promise<void>;
     disconnectFacebook: () => Promise<void>;
     syncData: (credsToUse?: WooCommerceCredentials | null, startDate?: Date, endDate?: Date, force?: boolean) => Promise<void>;
+    syncAnalytics: (credsToUse?: WooCommerceCredentials | null, startDate?: Date, endDate?: Date, force?: boolean) => Promise<void>;
+    syncCatalog: (credsToUse?: WooCommerceCredentials | null, force?: boolean) => Promise<void>;
     getProductVariations: (productId: number) => Promise<any[]>;
     lastSyncRange: { start?: Date; end?: Date } | null;
 }
@@ -246,42 +248,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setIsFacebookConnected(false);
     };
 
-    const syncData = async (credsToUse = credentials, startDate?: Date, endDate?: Date, force = false) => {
+    const syncAnalytics = async (credsToUse = credentials, startDate?: Date, endDate?: Date, force = false) => {
         if (!credsToUse) return;
 
+        // Default dates if not provided
+        const start = startDate || new Date(new Date().setDate(new Date().getDate() - 30));
+        const end = endDate || new Date();
+
         // Check if we already have data for this range (In-Memory)
-        if (!force && data && lastSyncRange?.start && lastSyncRange?.end && startDate && endDate) {
-            const isSameStart = startDate.toISOString().split('T')[0] === lastSyncRange.start.toISOString().split('T')[0];
-            const isSameEnd = endDate.toISOString().split('T')[0] === lastSyncRange.end.toISOString().split('T')[0];
+        if (!force && data && lastSyncRange?.start && lastSyncRange?.end) {
+            const isSameStart = start.toISOString().split('T')[0] === lastSyncRange.start.toISOString().split('T')[0];
+            const isSameEnd = end.toISOString().split('T')[0] === lastSyncRange.end.toISOString().split('T')[0];
 
-            if (isSameStart && isSameEnd) {
-                console.log('Skipping sync: Data already loaded for this range (Memory)');
+            if (isSameStart && isSameEnd && data.sales && data.sales.length > 0) {
+                console.log('Skipping analytics sync: Data already loaded for this range (Memory)');
                 return;
-            }
-        }
-
-        // Check Local Storage Cache
-        if (!force && user) {
-            const cacheKey = `dashboard_data_${user.id}`;
-            const cached = localStorage.getItem(cacheKey);
-            if (cached) {
-                try {
-                    const { timestamp, data: cachedData, range } = JSON.parse(cached);
-                    // Cache validity: 1 hour (can be adjusted)
-                    const now = new Date().getTime();
-                    if (now - timestamp < 60 * 60 * 1000) {
-                        console.log('Loading data from Local Storage Cache');
-                        setData(cachedData);
-                        if (range?.start && range?.end) {
-                            setLastSyncRange({ start: new Date(range.start), end: new Date(range.end) });
-                        }
-                        return;
-                    } else {
-                        console.log('Cache expired');
-                    }
-                } catch (e) {
-                    console.error('Error parsing cache', e);
-                }
             }
         }
 
@@ -290,47 +271,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             const { url, consumerKey, consumerSecret } = credsToUse;
             const auth = btoa(`${consumerKey}:${consumerSecret}`);
 
-            // Handle CORS proxy for development
-            // Use Vercel Serverless Proxy
             const targetUrl = `${url.replace(/\/$/, '')}/wp-json/wc/v3`;
-
-            // Helper to construct proxy URL
-            const getProxyUrl = (endpoint: string, queryParams: string = '') => {
-                const fullUrl = `${targetUrl}${endpoint}${queryParams ? '?' + queryParams : ''}`;
-                return `/api/proxy?url=${encodeURIComponent(fullUrl)}`;
-            };
-
-            // For Analytics, the base path is different (/wp-json/wc-analytics)
             const analyticsTargetUrl = `${url.replace(/\/$/, '')}/wp-json/wc-analytics`;
+
             const getAnalyticsProxyUrl = (endpoint: string, queryParams: string = '') => {
                 const fullUrl = `${analyticsTargetUrl}${endpoint}${queryParams ? '?' + queryParams : ''}`;
                 return `/api/proxy?url=${encodeURIComponent(fullUrl)}`;
             };
 
-            const headers = {
-                Authorization: `Basic ${auth}`,
+            const getProxyUrl = (endpoint: string, queryParams: string = '') => {
+                const fullUrl = `${targetUrl}${endpoint}${queryParams ? '?' + queryParams : ''}`;
+                return `/api/proxy?url=${encodeURIComponent(fullUrl)}`;
             };
 
-            // Format dates for Analytics API (ISO 8601)
+            const headers = { Authorization: `Basic ${auth}` };
+
             const params = new URLSearchParams();
             params.append('interval', 'day');
             params.append('per_page', '100');
-            if (startDate) params.append('after', startDate.toISOString());
-            if (endDate) params.append('before', endDate.toISOString());
+            params.append('after', start.toISOString());
+            params.append('before', end.toISOString());
 
-            // Fetch Sales (Analytics)
-            // Note: Analytics API is at /wp-json/wc-analytics, not /wp-json/wc/v3/wc-analytics
-            // We need to strip /wc/v3 from baseUrl or construct a new one
+            // Fetch Sales
             const salesUrl = getAnalyticsProxyUrl('/reports/revenue/stats', params.toString());
-            console.log('Fetching Analytics URL via Proxy:', salesUrl);
             const salesRes = await fetch(salesUrl, { headers });
             if (!salesRes.ok) throw new Error('Failed to fetch sales stats');
             const analyticsData = await salesRes.json();
-            console.log('Analytics Data Response:', analyticsData);
 
-            // Map Analytics Data to DashboardData structure
-            // Analytics API returns { intervals: [...], totals: {...} }
-            // We map intervals to the 'sales' array expected by the dashboard
             const salesData = analyticsData.intervals.map((interval: any) => ({
                 date: interval.interval,
                 total_sales: String(interval.subtotals.gross_sales || 0),
@@ -347,177 +314,158 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // Fetch Products (Top sellers)
             let productsData = [];
             try {
-                console.log('Fetching Products Analytics...');
                 const productsParams = new URLSearchParams();
-                productsParams.append('per_page', '20'); // Fetch more for full list
+                productsParams.append('per_page', '20');
                 productsParams.append('orderby', 'items_sold');
                 productsParams.append('order', 'desc');
                 productsParams.append('extended_info', 'true');
-                if (startDate) productsParams.append('after', startDate.toISOString());
-                if (endDate) productsParams.append('before', endDate.toISOString());
+                productsParams.append('after', start.toISOString());
+                productsParams.append('before', end.toISOString());
 
-                // Use Analytics API for products to get date-filtered performance
-                // Use Analytics API for products to get date-filtered performance
                 const productsUrl = getAnalyticsProxyUrl('/reports/products', productsParams.toString());
                 const productsRes = await fetch(productsUrl, { headers });
-
-                if (productsRes.ok) {
-                    productsData = await productsRes.json();
-                } else {
-                    console.error('Failed to fetch products analytics:', productsRes.statusText);
-                }
+                if (productsRes.ok) productsData = await productsRes.json();
             } catch (e) {
                 console.error('Error fetching products analytics:', e);
             }
 
-            // Fetch Full Product List (for Products Page)
-            let productsList: any[] = [];
-            try {
-                console.log('Fetching Full Product List...');
-                let page = 1;
-                let hasMore = true;
-
-                while (hasMore) {
-                    const productsListParams = new URLSearchParams();
-                    productsListParams.append('per_page', '100');
-                    productsListParams.append('page', page.toString());
-                    productsListParams.append('status', 'any');
-
-                    const productsListRes = await fetch(getProxyUrl('/products', productsListParams.toString()), { headers });
-
-                    if (productsListRes.ok) {
-                        const pageProducts = await productsListRes.json();
-                        if (pageProducts.length > 0) {
-                            productsList = [...productsList, ...pageProducts];
-                            page++;
-                        } else {
-                            hasMore = false;
-                        }
-                    } else {
-                        console.error(`Failed to fetch products list page ${page}:`, productsListRes.statusText);
-                        hasMore = false;
-                    }
-                }
-                console.log(`Total products fetched: ${productsList.length}`);
-            } catch (e) {
-                console.error('Error fetching products list:', e);
-            }
-
-            // Fetch Orders (For Heatmap & Recent Sales & Orders Page)
+            // Fetch Orders
             let ordersData: any[] = [];
             try {
-                console.log('Fetching Orders...');
-                let page = 1;
-                let hasMore = true;
+                const ordersParams = new URLSearchParams();
+                ordersParams.append('per_page', '100');
+                ordersParams.append('after', start.toISOString());
+                ordersParams.append('before', end.toISOString());
 
-                while (hasMore) {
-                    const ordersParams = new URLSearchParams();
-                    ordersParams.append('per_page', '100');
-                    ordersParams.append('page', page.toString());
-                    if (startDate) ordersParams.append('after', startDate.toISOString());
-                    if (endDate) ordersParams.append('before', endDate.toISOString());
-
-                    const ordersRes = await fetch(getProxyUrl('/orders', ordersParams.toString()), { headers });
-
-                    if (ordersRes.ok) {
-                        const pageOrders = await ordersRes.json();
-                        if (pageOrders.length > 0) {
-                            ordersData = [...ordersData, ...pageOrders];
-                            page++;
-                        } else {
-                            hasMore = false;
-                        }
-                    } else {
-                        console.error(`Failed to fetch orders page ${page}:`, ordersRes.statusText);
-                        hasMore = false;
-                    }
-                }
-                console.log(`Total orders fetched: ${ordersData.length}`);
+                const ordersRes = await fetch(getProxyUrl('/orders', ordersParams.toString()), { headers });
+                if (ordersRes.ok) ordersData = await ordersRes.json();
             } catch (e) {
                 console.error('Error fetching orders:', e);
             }
 
-            // Fetch Customers (Full List)
-            let customersList: any[] = [];
-            let totalCustomers = 0;
-            try {
-                console.log('Fetching Customers...');
-                let page = 1;
-                let hasMore = true;
-
-                // First fetch to get total and first page
-                const firstRes = await fetch(getProxyUrl('/customers', 'per_page=100&page=1'), { headers });
-                if (firstRes.ok) {
-                    const totalHeader = firstRes.headers.get('X-WP-Total');
-                    totalCustomers = totalHeader ? parseInt(totalHeader) : 0;
-                    const pageCustomers = await firstRes.json();
-                    customersList = [...pageCustomers];
-
-                    if (pageCustomers.length < 100) {
-                        hasMore = false;
-                    } else {
-                        page++;
-                    }
-                } else {
-                    hasMore = false;
-                }
-
-                while (hasMore) {
-                    const customersRes = await fetch(getProxyUrl('/customers', `per_page=100&page=${page}`), { headers });
-                    if (customersRes.ok) {
-                        const pageCustomers = await customersRes.json();
-                        if (pageCustomers.length > 0) {
-                            customersList = [...customersList, ...pageCustomers];
-                            page++;
-                        } else {
-                            hasMore = false;
-                        }
-                    } else {
-                        console.error(`Failed to fetch customers page ${page}:`, customersRes.statusText);
-                        hasMore = false;
-                    }
-                }
-                console.log(`Total customers fetched: ${customersList.length}`);
-            } catch (e) {
-                console.error('Error fetching customers:', e);
-            }
-
-            const newData = {
+            setData(prev => ({
                 sales: salesData,
                 products: productsData,
-                productsList: productsList,
                 orders: ordersData,
-                customers: { total: totalCustomers },
-                customersList: customersList,
-            };
+                productsList: prev?.productsList || [],
+                customersList: prev?.customersList || [],
+                customers: prev?.customers || { total: 0 }
+            }));
 
-            setData(newData);
-
-            // Save to Local Storage Cache
-            if (user) {
-                const cacheKey = `dashboard_data_${user.id}`;
-                const cachePayload = {
-                    timestamp: new Date().getTime(),
-                    data: newData,
-                    range: { start: startDate, end: endDate }
-                };
-                try {
-                    localStorage.setItem(cacheKey, JSON.stringify(cachePayload));
-                    console.log('Data saved to Local Storage Cache');
-                } catch (e) {
-                    console.error('Failed to save to cache (quota exceeded?)', e);
-                }
-            }
-
-            if (startDate && endDate) {
-                setLastSyncRange({ start: startDate, end: endDate });
-            }
+            setLastSyncRange({ start, end });
 
         } catch (err) {
-            console.error('Sync Data Error:', err instanceof Error ? err.message : err);
+            console.error('Sync Analytics Error:', err);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const syncCatalog = async (credsToUse = credentials, force = false) => {
+        if (!credsToUse) return;
+
+        if (!force && data && data.productsList && data.productsList.length > 0) {
+            console.log('Skipping catalog sync: Data already loaded (Memory)');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const { url, consumerKey, consumerSecret } = credsToUse;
+            const auth = btoa(`${consumerKey}:${consumerSecret}`);
+
+            const targetUrl = `${url.replace(/\/$/, '')}/wp-json/wc/v3`;
+            const getProxyUrl = (endpoint: string, queryParams: string = '') => {
+                const fullUrl = `${targetUrl}${endpoint}${queryParams ? '?' + queryParams : ''}`;
+                return `/api/proxy?url=${encodeURIComponent(fullUrl)}`;
+            };
+
+            const headers = { Authorization: `Basic ${auth}` };
+
+            // Fetch Full Product List
+            let productsList: any[] = [];
+            try {
+                let page = 1;
+                let hasMore = true;
+                while (hasMore) {
+                    const productsListParams = new URLSearchParams();
+                    productsListParams.append('per_page', '100');
+                    productsListParams.append('page', page.toString());
+
+                    const res = await fetch(getProxyUrl('/products', productsListParams.toString()), { headers });
+                    if (res.ok) {
+                        const pageData = await res.json();
+                        if (pageData.length > 0) {
+                            productsList = [...productsList, ...pageData];
+                            page++;
+                        } else hasMore = false;
+                    } else hasMore = false;
+                }
+            } catch (e) { console.error('Error fetching products list:', e); }
+
+            // Fetch Customers
+            let customersList: any[] = [];
+            let totalCustomers = 0;
+            try {
+                let page = 1;
+                let hasMore = true;
+
+                const firstRes = await fetch(getProxyUrl('/customers', 'per_page=100&page=1'), { headers });
+                if (firstRes.ok) {
+                    totalCustomers = parseInt(firstRes.headers.get('X-WP-Total') || '0');
+                    const pageData = await firstRes.json();
+                    customersList = [...pageData];
+                    if (pageData.length < 100) hasMore = false;
+                    else page++;
+                } else hasMore = false;
+
+                while (hasMore) {
+                    const res = await fetch(getProxyUrl('/customers', `per_page=100&page=${page}`), { headers });
+                    if (res.ok) {
+                        const pageData = await res.json();
+                        if (pageData.length > 0) {
+                            customersList = [...customersList, ...pageData];
+                            page++;
+                        } else hasMore = false;
+                    } else hasMore = false;
+                }
+            } catch (e) { console.error('Error fetching customers:', e); }
+
+            setData(prev => {
+                const newData = {
+                    sales: prev?.sales || [],
+                    products: prev?.products || [],
+                    orders: prev?.orders || [],
+                    productsList: productsList,
+                    customersList: customersList,
+                    customers: { total: totalCustomers }
+                };
+
+                if (user) {
+                    const cacheKey = `dashboard_data_${user.id}`;
+                    try {
+                        localStorage.setItem(cacheKey, JSON.stringify({
+                            timestamp: new Date().getTime(),
+                            data: newData,
+                            range: lastSyncRange
+                        }));
+                    } catch (e) { console.error('Failed to save to cache', e); }
+                }
+                return newData;
+            });
+
+        } catch (err) {
+            console.error('Sync Catalog Error:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const syncData = async (credsToUse = credentials, startDate?: Date, endDate?: Date, force = false) => {
+        await Promise.all([
+            syncAnalytics(credsToUse, startDate, endDate, force),
+            syncCatalog(credsToUse, force)
+        ]);
     };
 
     const getProductVariations = async (productId: number) => {
@@ -556,6 +504,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             connectFacebook,
             disconnectFacebook,
             syncData,
+            syncAnalytics,
+            syncCatalog,
             getProductVariations,
             lastSyncRange
         }}>

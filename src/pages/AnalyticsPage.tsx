@@ -14,7 +14,7 @@ import { type DateRange } from "react-day-picker"
 import { subDays } from "date-fns"
 
 export function AnalyticsPage() {
-    const { data, isLoading, syncData, credentials } = useData()
+    const { data, isLoading, syncAnalytics, credentials } = useData()
     const [date, setDate] = useState<DateRange | undefined>({
         from: subDays(new Date(), 30),
         to: new Date(),
@@ -23,15 +23,15 @@ export function AnalyticsPage() {
     // Sync data when date changes or credentials load
     useEffect(() => {
         if (credentials && date?.from && date?.to) {
-            syncData(credentials, date.from, date.to)
+            syncAnalytics(credentials, date.from, date.to)
         }
-    }, [credentials, date]) // Sync whenever credentials or date changes
+    }, [credentials, date?.from, date?.to]) // Sync whenever credentials or date changes
 
     const handleRefresh = async () => {
         if (date?.from && date?.to) {
-            await syncData(credentials, date.from, date.to, true)
+            await syncAnalytics(credentials, date.from, date.to, true)
         } else {
-            await syncData(credentials, undefined, undefined, true)
+            await syncAnalytics(credentials, undefined, undefined, true)
         }
     }
 
