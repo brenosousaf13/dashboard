@@ -11,12 +11,30 @@ import { format, parseISO, subDays, startOfMonth, endOfMonth, isWithinInterval, 
 import { ptBR } from "date-fns/locale"
 
 export function OrdersPage() {
-    const { data, syncAnalytics, isLoading, credentials } = useData()
+    const {
+        data,
+        syncAnalytics,
+        isLoading,
+        credentials,
+        dateFilter,
+        customStartDate,
+        customEndDate,
+        setGlobalDateFilter
+    } = useData()
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
-    const [dateFilter, setDateFilter] = useState("this_month")
-    const [customStartDate, setCustomStartDate] = useState("")
-    const [customEndDate, setCustomEndDate] = useState("")
+
+    // Local state for inputs before applying
+    const [localDateFilter, setLocalDateFilter] = useState(dateFilter)
+    const [localStartDate, setLocalStartDate] = useState(customStartDate)
+    const [localEndDate, setLocalEndDate] = useState(customEndDate)
+
+    // Sync local state with global state on mount/update
+    useEffect(() => {
+        setLocalDateFilter(dateFilter)
+        setLocalStartDate(customStartDate)
+        setLocalEndDate(customEndDate)
+    }, [dateFilter, customStartDate, customEndDate])
     const [paymentFilter, setPaymentFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
     const itemsPerPage = 10
@@ -24,35 +42,42 @@ export function OrdersPage() {
     const orders = data?.orders || []
 
     // Initial sync on mount if needed
+    // Initial sync on mount if needed
     useEffect(() => {
         if (credentials && orders.length === 0) {
-            const now = new Date()
-            syncAnalytics(credentials, startOfMonth(now), endOfMonth(now))
+            handleApplyFilter(true)
         }
     }, [credentials])
 
-    const handleApplyFilter = () => {
+    const handleApplyFilter = (isInitial = false) => {
+        const filter = isInitial ? dateFilter : localDateFilter
+        const start = isInitial ? customStartDate : localStartDate
+        const end = isInitial ? customEndDate : localEndDate
+
         const now = new Date()
         let from = now
         let to = now
 
-        if (dateFilter === 'all') {
+        if (filter === 'all') {
             from = new Date(2020, 0, 1)
             to = now
-        } else if (dateFilter === 'today') {
+        } else if (filter === 'today') {
             from = startOfDay(now)
             to = endOfDay(now)
-        } else if (dateFilter === 'this_month') {
+        } else if (filter === 'this_month') {
             from = startOfMonth(now)
             to = endOfMonth(now)
-        } else if (dateFilter === 'last_30_days') {
+        } else if (filter === 'last_30_days') {
             from = subDays(now, 30)
             to = now
-        } else if (dateFilter === 'custom' && customStartDate && customEndDate) {
-            from = parseISO(customStartDate)
-            to = endOfDay(parseISO(customEndDate))
+        } else if (filter === 'custom' && start && end) {
+            from = parseISO(start)
+            to = endOfDay(parseISO(end))
         }
 
+        if (!isInitial) {
+            setGlobalDateFilter(filter, start, end)
+        }
         syncAnalytics(credentials, from, to)
         setCurrentPage(1)
     }
@@ -213,9 +238,8 @@ export function OrdersPage() {
                             <SelectItem value="failed">Falhou</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Select value={dateFilter} onValueChange={(val) => {
-                        setDateFilter(val)
-                        // Don't reset page yet, wait for apply
+                    <Select value={localDateFilter} onValueChange={(val) => {
+                        setLocalDateFilter(val)
                     }}>
                         <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Data" />
@@ -229,24 +253,24 @@ export function OrdersPage() {
                         </SelectContent>
                     </Select>
 
-                    {dateFilter === 'custom' && (
+                    {localDateFilter === 'custom' && (
                         <div className="flex gap-2">
                             <Input
                                 type="date"
-                                value={customStartDate}
-                                onChange={(e) => setCustomStartDate(e.target.value)}
+                                value={localStartDate}
+                                onChange={(e) => setLocalStartDate(e.target.value)}
                                 className="w-auto"
                             />
                             <Input
                                 type="date"
-                                value={customEndDate}
-                                onChange={(e) => setCustomEndDate(e.target.value)}
+                                value={localEndDate}
+                                onChange={(e) => setLocalEndDate(e.target.value)}
                                 className="w-auto"
                             />
                         </div>
                     )}
 
-                    <Button onClick={handleApplyFilter} disabled={isLoading}>
+                    <Button onClick={() => handleApplyFilter(false)} disabled={isLoading}>
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                         Aplicar
                     </Button>

@@ -41,6 +41,10 @@ interface DataContextType {
     syncCatalog: (credsToUse?: WooCommerceCredentials | null, force?: boolean) => Promise<void>;
     getProductVariations: (productId: number) => Promise<any[]>;
     updateStoreSettings: (name: string, logo: string | null) => Promise<void>;
+    setGlobalDateFilter: (filter: string, start: string, end: string) => void;
+    dateFilter: string;
+    customStartDate: string;
+    customEndDate: string;
     lastSyncRange: { start?: Date; end?: Date } | null;
 }
 
@@ -59,6 +63,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [storeName, setStoreName] = useState("Loja Exemplo");
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
+    // Global Date Filter State
+    // Global Date Filter State - Initialize from localStorage if available
+    const [dateFilter, setDateFilter] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('dateFilter') || 'last_30_days';
+        }
+        return 'last_30_days';
+    });
+    const [customStartDate, setCustomStartDate] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('customStartDate') || '';
+        }
+        return '';
+    });
+    const [customEndDate, setCustomEndDate] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('customEndDate') || '';
+        }
+        return '';
+    });
+
     useEffect(() => {
         if (user) {
             fetchProfile();
@@ -70,8 +95,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             setData(null);
             setStoreName("Loja Exemplo");
             setLogoUrl(null);
+            // Reset date filter on logout
+            // Reset date filter on logout and clear localStorage
+            setDateFilter('last_30_days');
+            setCustomStartDate('');
+            setCustomEndDate('');
+            localStorage.removeItem('dateFilter');
+            localStorage.removeItem('customStartDate');
+            localStorage.removeItem('customEndDate');
         }
     }, [user]);
+
+    const setGlobalDateFilter = (filter: string, start: string, end: string) => {
+        setDateFilter(filter);
+        setCustomStartDate(start);
+        setCustomEndDate(end);
+
+        // Persist to localStorage
+        localStorage.setItem('dateFilter', filter);
+        localStorage.setItem('customStartDate', start);
+        localStorage.setItem('customEndDate', end);
+    };
 
     const fetchProfile = async () => {
         if (!user) {
@@ -543,6 +587,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             syncCatalog,
             getProductVariations,
             updateStoreSettings,
+            setGlobalDateFilter,
+            dateFilter,
+            customStartDate,
+            customEndDate,
             lastSyncRange
         }}>
             {children}

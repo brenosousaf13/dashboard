@@ -13,27 +13,35 @@ import { useData } from "../context/DataContext"
 import { startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, parseISO } from "date-fns"
 
 export function CampaignsPage() {
-    const { isFacebookConnected, facebookCredentials } = useData()
+    const {
+        isFacebookConnected,
+        facebookCredentials,
+        dateFilter,
+        customStartDate,
+        customEndDate,
+        setGlobalDateFilter
+    } = useData()
     const navigate = useNavigate()
     const [campaigns, setCampaigns] = useState<CampaignData[]>([])
     const [error, setError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
 
-    // Date Filter State
-    const [dateFilter, setDateFilter] = useState("last_30_days")
-    const [customStartDate, setCustomStartDate] = useState("")
-    const [customEndDate, setCustomEndDate] = useState("")
+    // Local state for inputs before applying
+    const [localDateFilter, setLocalDateFilter] = useState(dateFilter)
+    const [localStartDate, setLocalStartDate] = useState(customStartDate)
+    const [localEndDate, setLocalEndDate] = useState(customEndDate)
 
-    // Calculate initial date range
-    const [currentRange, setCurrentRange] = useState<{ from: Date, to: Date }>(() => {
-        const now = new Date()
-        return { from: subDays(now, 30), to: now }
-    })
+    // Sync local state with global state on mount/update
+    useEffect(() => {
+        setLocalDateFilter(dateFilter)
+        setLocalStartDate(customStartDate)
+        setLocalEndDate(customEndDate)
+    }, [dateFilter, customStartDate, customEndDate])
 
     useEffect(() => {
         if (isFacebookConnected && facebookCredentials?.accessToken) {
             // Initial load with default range
-            loadCampaigns(facebookCredentials.accessToken, currentRange.from, currentRange.to)
+            handleApplyFilter(true)
         }
     }, [isFacebookConnected, facebookCredentials])
 
@@ -70,31 +78,37 @@ export function CampaignsPage() {
         }
     }
 
-    const handleApplyFilter = () => {
+    const handleApplyFilter = (isInitial = false) => {
         if (!facebookCredentials?.accessToken) return
+
+        const filter = isInitial ? dateFilter : localDateFilter
+        const start = isInitial ? customStartDate : localStartDate
+        const end = isInitial ? customEndDate : localEndDate
 
         const now = new Date()
         let from = now
         let to = now
 
-        if (dateFilter === 'all') {
+        if (filter === 'all') {
             from = new Date(2020, 0, 1)
             to = now
-        } else if (dateFilter === 'today') {
+        } else if (filter === 'today') {
             from = startOfDay(now)
             to = endOfDay(now)
-        } else if (dateFilter === 'this_month') {
+        } else if (filter === 'this_month') {
             from = startOfMonth(now)
             to = endOfMonth(now)
-        } else if (dateFilter === 'last_30_days') {
+        } else if (filter === 'last_30_days') {
             from = subDays(now, 30)
             to = now
-        } else if (dateFilter === 'custom' && customStartDate && customEndDate) {
-            from = parseISO(customStartDate)
-            to = endOfDay(parseISO(customEndDate))
+        } else if (filter === 'custom' && start && end) {
+            from = parseISO(start)
+            to = endOfDay(parseISO(end))
         }
 
-        setCurrentRange({ from, to })
+        if (!isInitial) {
+            setGlobalDateFilter(filter, start, end)
+        }
         loadCampaigns(facebookCredentials.accessToken, from, to)
     }
 
@@ -208,7 +222,7 @@ export function CampaignsPage() {
                     />
                 </div>
 
-                <Select value={dateFilter} onValueChange={setDateFilter}>
+                <Select value={localDateFilter} onValueChange={setLocalDateFilter}>
                     <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Período" />
                     </SelectTrigger>
@@ -221,24 +235,24 @@ export function CampaignsPage() {
                     </SelectContent>
                 </Select>
 
-                {dateFilter === 'custom' && (
+                {localDateFilter === 'custom' && (
                     <div className="flex gap-2">
                         <Input
                             type="date"
-                            value={customStartDate}
-                            onChange={(e) => setCustomStartDate(e.target.value)}
+                            value={localStartDate}
+                            onChange={(e) => setLocalStartDate(e.target.value)}
                             className="w-auto"
                         />
                         <Input
                             type="date"
-                            value={customEndDate}
-                            onChange={(e) => setCustomEndDate(e.target.value)}
+                            value={localEndDate}
+                            onChange={(e) => setLocalEndDate(e.target.value)}
                             className="w-auto"
                         />
                     </div>
                 )}
 
-                <Button onClick={handleApplyFilter} disabled={isLoading}>
+                <Button onClick={() => handleApplyFilter(false)} disabled={isLoading}>
                     {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                     Aplicar
                 </Button>
