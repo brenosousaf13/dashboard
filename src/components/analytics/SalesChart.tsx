@@ -7,10 +7,14 @@ interface SalesChartProps {
 
 export function SalesChart({ className, sales }: { className?: string } & SalesChartProps) {
     // Transform sales data for chart
-    const data = sales && sales.length > 0 ? sales.map((item: any) => ({
-        name: new Date(item.date_created).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-        total: parseFloat(item.total_sales)
-    })) : []
+    const data = sales && sales.length > 0 ? sales.map((item: any) => {
+        // item.date is YYYY-MM-DD. Split to avoid timezone issues with new Date()
+        const [year, month, day] = item.date.split('-');
+        return {
+            name: `${day}/${month}`,
+            total: parseFloat(item.total_sales)
+        }
+    }) : []
 
     return (
         <Card className={className}>
