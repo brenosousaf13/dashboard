@@ -12,6 +12,8 @@ import { LoginPage } from "./pages/auth/LoginPage"
 import { RegisterPage } from "./pages/auth/RegisterPage"
 import { PrivateRoute } from "./components/PrivateRoute"
 
+import { AiInsightsPage } from "@/pages/AiInsightsPage"
+
 function App() {
   return (
     <Router>
@@ -29,7 +31,7 @@ function App() {
                 <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/campaigns" element={<CampaignsPage />} />
-                <Route path="/ai-insights" element={<div className="p-8"><h1 className="text-2xl font-bold mb-4">Insights de IA</h1><p className="text-muted-foreground">Em breve...</p></div>} />
+                <Route path="/ai-insights" element={<AiInsightsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
