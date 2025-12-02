@@ -4,11 +4,15 @@ import { cn } from "../lib/utils"
 import { Button } from "./ui/button"
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import { useData } from "../context/DataContext"
+import { StoreSettingsModal } from "./settings/StoreSettingsModal"
 
 export function Sidebar() {
     const [isCollapsed, setIsCollapsed] = useState(false)
+    const [isStoreModalOpen, setIsStoreModalOpen] = useState(false)
     const location = useLocation()
     const { signOut, user } = useAuth()
+    const { storeName, logoUrl } = useData()
 
     return (
         <div
@@ -18,7 +22,13 @@ export function Sidebar() {
             )}
         >
             <div className="flex h-16 items-center justify-between px-4 border-b">
-                {!isCollapsed && <span className="text-lg font-bold">E-com Dash</span>}
+                {!isCollapsed && (
+                    logoUrl ? (
+                        <img src={logoUrl} alt={storeName} className="h-8 object-contain" />
+                    ) : (
+                        <span className="text-lg font-bold">E-com Dash</span>
+                    )
+                )}
                 <Button
                     variant="ghost"
                     size="icon"
@@ -59,14 +69,24 @@ export function Sidebar() {
             </div>
 
             <div className="border-t p-4">
-                <div className={cn("flex items-center gap-3 mb-4", isCollapsed && "justify-center")}>
-                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                        {user?.email?.[0].toUpperCase() || "U"}
+                <div
+                    className={cn(
+                        "flex items-center gap-3 mb-4 cursor-pointer hover:bg-accent/50 p-2 rounded-md transition-colors",
+                        isCollapsed && "justify-center"
+                    )}
+                    onClick={() => setIsStoreModalOpen(true)}
+                >
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden">
+                        {logoUrl ? (
+                            <img src={logoUrl} alt="Store Logo" className="h-full w-full object-cover" />
+                        ) : (
+                            user?.email?.[0].toUpperCase() || "U"
+                        )}
                     </div>
                     {!isCollapsed && (
                         <div className="flex flex-col overflow-hidden">
                             <span className="text-sm font-medium truncate">{user?.email}</span>
-                            <span className="text-xs text-muted-foreground">Loja Exemplo</span>
+                            <span className="text-xs text-muted-foreground">{storeName}</span>
                         </div>
                     )}
                 </div>
@@ -82,6 +102,11 @@ export function Sidebar() {
                     {!isCollapsed && <span>Sair</span>}
                 </Button>
             </div>
+
+            <StoreSettingsModal
+                isOpen={isStoreModalOpen}
+                onClose={() => setIsStoreModalOpen(false)}
+            />
         </div>
     )
 }

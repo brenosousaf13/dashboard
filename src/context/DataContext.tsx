@@ -30,6 +30,8 @@ interface DataContextType {
     isLoading: boolean;
     isFbLoading: boolean;
     data: DashboardData | null;
+    storeName: string;
+    logoUrl: string | null;
     connect: (creds: WooCommerceCredentials) => Promise<void>;
     disconnect: () => Promise<void>;
     connectFacebook: (creds: FacebookCredentials) => Promise<void>;
@@ -38,6 +40,7 @@ interface DataContextType {
     syncAnalytics: (credsToUse?: WooCommerceCredentials | null, startDate?: Date, endDate?: Date, force?: boolean) => Promise<void>;
     syncCatalog: (credsToUse?: WooCommerceCredentials | null, force?: boolean) => Promise<void>;
     getProductVariations: (productId: number) => Promise<any[]>;
+    updateStoreSettings: (name: string, logo: string | null) => Promise<void>;
     lastSyncRange: { start?: Date; end?: Date } | null;
 }
 
@@ -53,6 +56,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [isFbLoading, setIsFbLoading] = useState(false);
     const [data, setData] = useState<DashboardData | null>(null);
     const [lastSyncRange, setLastSyncRange] = useState<{ start?: Date; end?: Date } | null>(null);
+    const [storeName, setStoreName] = useState("Loja Exemplo");
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
     useEffect(() => {
         if (user) {
@@ -63,6 +68,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             setIsConnected(false);
             setIsFacebookConnected(false);
             setData(null);
+            setStoreName("Loja Exemplo");
+            setLogoUrl(null);
         }
     }, [user]);
 
@@ -75,7 +82,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('woocommerce_url, woocommerce_consumer_key, woocommerce_consumer_secret, facebook_app_id, facebook_access_token')
+                .select('woocommerce_url, woocommerce_consumer_key, woocommerce_consumer_secret, facebook_app_id, facebook_access_token, store_name, logo_url')
                 .eq('id', user.id)
                 .single();
 
@@ -91,34 +98,60 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
             console.log('fetchProfile: Data received:', data);
 
-            if (data && data.woocommerce_url && data.woocommerce_consumer_key && data.woocommerce_consumer_secret) {
-                console.log('fetchProfile: Found WooCommerce credentials');
-                const creds = {
-                    url: data.woocommerce_url,
-                    consumerKey: data.woocommerce_consumer_key,
-                    consumerSecret: data.woocommerce_consumer_secret
-                };
-                setCredentials(creds);
-                setIsConnected(true);
-                // Auto-sync data when credentials are loaded
-                console.log('fetchProfile: Triggering syncData');
-                syncData(creds);
-            } else {
-                console.log('fetchProfile: No WooCommerce credentials found');
-            }
+            if (data) {
+                if (data.store_name) setStoreName(data.store_name);
+                if (data.logo_url) setLogoUrl(data.logo_url);
 
-            if (data && data.facebook_app_id && data.facebook_access_token) {
-                console.log('fetchProfile: Found Facebook credentials');
-                setFacebookCredentials({
-                    appId: data.facebook_app_id,
-                    accessToken: data.facebook_access_token
-                });
-                setIsFacebookConnected(true);
-            } else {
-                console.log('fetchProfile: No Facebook credentials found');
+                if (data.woocommerce_url && data.woocommerce_consumer_key && data.woocommerce_consumer_secret) {
+                    console.log('fetchProfile: Found WooCommerce credentials');
+                    const creds = {
+                        url: data.woocommerce_url,
+                        consumerKey: data.woocommerce_consumer_key,
+                        consumerSecret: data.woocommerce_consumer_secret
+                    };
+                    setCredentials(creds);
+                    setIsConnected(true);
+                    // Auto-sync data when credentials are loaded
+                    console.log('fetchProfile: Triggering syncData');
+                    syncData(creds);
+                } else {
+                    console.log('fetchProfile: No WooCommerce credentials found');
+                }
+
+                if (data.facebook_app_id && data.facebook_access_token) {
+                    console.log('fetchProfile: Found Facebook credentials');
+                    setFacebookCredentials({
+                        appId: data.facebook_app_id,
+                        accessToken: data.facebook_access_token
+                    });
+                    setIsFacebookConnected(true);
+                } else {
+                    console.log('fetchProfile: No Facebook credentials found');
+                }
             }
         } catch (error) {
             console.error('Error fetching profile:', error);
+        }
+    };
+
+    const updateStoreSettings = async (name: string, logo: string | null) => {
+        if (!user) return;
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    store_name: name,
+                    logo_url: logo
+                })
+                .eq('id', user.id);
+
+            if (error) throw error;
+
+            setStoreName(name);
+            setLogoUrl(logo);
+        } catch (error) {
+            console.error('Error updating store settings:', error);
+            throw error;
         }
     };
 
@@ -499,6 +532,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             isLoading,
             isFbLoading,
             data,
+            storeName,
+            logoUrl,
             connect,
             disconnect,
             connectFacebook,
@@ -507,6 +542,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             syncAnalytics,
             syncCatalog,
             getProductVariations,
+            updateStoreSettings,
             lastSyncRange
         }}>
             {children}
