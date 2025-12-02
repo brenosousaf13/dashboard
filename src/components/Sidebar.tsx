@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { BarChart3, ChevronLeft, ChevronRight, Settings, ShoppingBag, Users, Package, Megaphone, LogOut } from "lucide-react"
+import { BarChart3, ChevronLeft, ChevronRight, Settings, ShoppingBag, Users, Package, Megaphone, LogOut, Sparkles } from "lucide-react"
 import { cn } from "../lib/utils"
 import { Button } from "./ui/button"
 import { Link, useLocation } from "react-router-dom"
@@ -56,6 +56,13 @@ export function Sidebar() {
                         label="Campanhas"
                         to="/campaigns"
                         isActive={location.pathname === "/campaigns"}
+                        isCollapsed={isCollapsed}
+                    />
+                    <NavItem
+                        icon={Sparkles}
+                        label="Insights de IA"
+                        to="/ai-insights"
+                        isActive={location.pathname === "/ai-insights"}
                         isCollapsed={isCollapsed}
                     />
                     <NavItem

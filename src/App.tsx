@@ -29,6 +29,7 @@ function App() {
                 <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/campaigns" element={<CampaignsPage />} />
+                <Route path="/ai-insights" element={<div className="p-8"><h1 className="text-2xl font-bold mb-4">Insights de IA</h1><p className="text-muted-foreground">Em breve...</p></div>} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
