@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, parseISO } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -328,9 +329,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const syncAnalytics = async (credsToUse = credentials, startDate?: Date, endDate?: Date, force = false) => {
         if (!credsToUse) return;
 
-        // Default dates if not provided
-        const start = startDate || new Date(new Date().setDate(new Date().getDate() - 30));
-        const end = endDate || new Date();
+        // Determine dates based on arguments or global state
+        let start = startDate;
+        let end = endDate;
+
+        if (!start || !end) {
+            const now = new Date();
+            if (dateFilter === 'all') {
+                start = new Date(2020, 0, 1);
+                end = now;
+            } else if (dateFilter === 'today') {
+                start = startOfDay(now);
+                end = endOfDay(now);
+            } else if (dateFilter === 'this_month') {
+                start = startOfMonth(now);
+                end = endOfMonth(now);
+            } else if (dateFilter === 'last_30_days') {
+                start = subDays(now, 30);
+                end = now;
+            } else if (dateFilter === 'custom' && customStartDate && customEndDate) {
+                start = parseISO(customStartDate);
+                end = endOfDay(parseISO(customEndDate));
+            } else {
+                // Fallback
+                start = subDays(now, 30);
+                end = now;
+            }
+        }
 
         // Check if we already have data for this range (In-Memory)
         if (!force && data && lastSyncRange?.start && lastSyncRange?.end) {
@@ -369,13 +394,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             params.append('after', start.toISOString());
             params.append('before', end.toISOString());
 
-            // Fetch Sales
-            const salesUrl = getAnalyticsProxyUrl('/reports/revenue/stats', params.toString());
-            const salesRes = await fetch(salesUrl, { headers });
-            if (!salesRes.ok) throw new Error('Failed to fetch sales stats');
-            const analyticsData = await salesRes.json();
+            // Fetch Sales with Pagination
+            let allSalesData: any[] = [];
+            let salesPage = 1;
+            let hasMoreSales = true;
 
-            const salesData = analyticsData.intervals.map((interval: any) => ({
+            while (hasMoreSales) {
+                const salesParams = new URLSearchParams();
+                salesParams.append('interval', 'day');
+                salesParams.append('per_page', '100');
+                salesParams.append('page', salesPage.toString());
+                salesParams.append('after', start.toISOString());
+                salesParams.append('before', end.toISOString());
+
+                const salesUrl = getAnalyticsProxyUrl('/reports/revenue/stats', salesParams.toString());
+                const salesRes = await fetch(salesUrl, { headers });
+
+                if (!salesRes.ok) {
+                    console.error('Failed to fetch sales stats page', salesPage);
+                    hasMoreSales = false;
+                    continue;
+                }
+
+                const analyticsData = await salesRes.json();
+                // WC Analytics API returns { intervals: [...] }
+                // If intervals is empty, we are done
+                if (analyticsData.intervals && analyticsData.intervals.length > 0) {
+                    allSalesData = [...allSalesData, ...analyticsData.intervals];
+                    // If we got less than 100 items, we are probably done, but let's check next page to be safe or rely on length
+                    if (analyticsData.intervals.length < 100) {
+                        hasMoreSales = false;
+                    } else {
+                        salesPage++;
+                    }
+                } else {
+                    hasMoreSales = false;
+                }
+            }
+
+            const salesData = allSalesData.map((interval: any) => ({
                 date: interval.interval,
                 total_sales: String(interval.subtotals.gross_sales || 0),
                 net_sales: String(interval.subtotals.net_revenue || 0),
@@ -406,16 +463,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 console.error('Error fetching products analytics:', e);
             }
 
-            // Fetch Orders
+            // Fetch Orders with Pagination
             let ordersData: any[] = [];
             try {
-                const ordersParams = new URLSearchParams();
-                ordersParams.append('per_page', '100');
-                ordersParams.append('after', start.toISOString());
-                ordersParams.append('before', end.toISOString());
+                let page = 1;
+                let hasMore = true;
+                while (hasMore) {
+                    const ordersParams = new URLSearchParams();
+                    ordersParams.append('per_page', '100');
+                    ordersParams.append('page', page.toString());
+                    ordersParams.append('after', start.toISOString());
+                    ordersParams.append('before', end.toISOString());
 
-                const ordersRes = await fetch(getProxyUrl('/orders', ordersParams.toString()), { headers });
-                if (ordersRes.ok) ordersData = await ordersRes.json();
+                    const ordersRes = await fetch(getProxyUrl('/orders', ordersParams.toString()), { headers });
+                    if (ordersRes.ok) {
+                        const pageData = await ordersRes.json();
+                        if (pageData.length > 0) {
+                            ordersData = [...ordersData, ...pageData];
+                            if (pageData.length < 100) {
+                                hasMore = false;
+                            } else {
+                                page++;
+                            }
+                        } else {
+                            hasMore = false;
+                        }
+                    } else {
+                        console.error('Failed to fetch orders page', page);
+                        hasMore = false;
+                    }
+                }
             } catch (e) {
                 console.error('Error fetching orders:', e);
             }
