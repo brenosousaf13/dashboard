@@ -12,7 +12,7 @@ import { LoginPage } from "./pages/auth/LoginPage"
 import { RegisterPage } from "./pages/auth/RegisterPage"
 import { PrivateRoute } from "./components/PrivateRoute"
 
-import { AiInsightsPage } from "@/pages/AiInsightsPage"
+
 
 function App() {
   return (
@@ -31,7 +31,6 @@ function App() {
                 <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/campaigns" element={<CampaignsPage />} />
-                <Route path="/ai-insights" element={<AiInsightsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
