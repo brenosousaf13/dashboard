@@ -76,7 +76,7 @@ export const facebookAdsService = {
         return data.data;
     },
 
-    getCampaigns: async (adAccountId: string, accessToken: string): Promise<CampaignData[]> => {
+    getCampaigns: async (adAccountId: string, accessToken: string, startDate?: Date, endDate?: Date): Promise<CampaignData[]> => {
         try {
             console.log(`FB Service: Fetching campaigns for account ${adAccountId}...`);
 
@@ -89,16 +89,23 @@ export const facebookAdsService = {
                 'insights{spend,impressions,clicks,ctr,conversions,cost_per_conversion,cpm,actions}'
             ].join(',');
 
-            // Default to last 30 days for relevance, or maximum if needed. 
-            // Using a specific range helps avoid timeouts on large accounts.
-            const today = new Date();
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(today.getDate() - 30);
-
-            const timeRange = {
-                since: thirtyDaysAgo.toISOString().split('T')[0],
-                until: today.toISOString().split('T')[0]
-            };
+            // Date range logic
+            let timeRange;
+            if (startDate && endDate) {
+                timeRange = {
+                    since: startDate.toISOString().split('T')[0],
+                    until: endDate.toISOString().split('T')[0]
+                };
+            } else {
+                // Default to last 30 days
+                const today = new Date();
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(today.getDate() - 30);
+                timeRange = {
+                    since: thirtyDaysAgo.toISOString().split('T')[0],
+                    until: today.toISOString().split('T')[0]
+                };
+            }
 
             const url = `https://graph.facebook.com/${FACEBOOK_GRAPH_API_VERSION}/${adAccountId}/campaigns?fields=${fields}&time_range=${JSON.stringify(timeRange)}&access_token=${accessToken}`;
 

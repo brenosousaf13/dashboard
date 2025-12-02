@@ -5,38 +5,49 @@ import { Input } from "../components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table"
 import { Badge } from "../components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select"
-import { Search, Download, Facebook, Eye, Edit, TrendingUp, DollarSign, ShoppingCart, Activity, Loader2, AlertCircle } from "lucide-react"
+import { Search, Download, Facebook, Eye, Edit, TrendingUp, DollarSign, ShoppingCart, Activity, Loader2 } from "lucide-react"
 import { facebookAdsService } from "../services/facebookAdsService"
 import type { CampaignData } from "../services/facebookAdsService"
 import { useNavigate } from "react-router-dom"
 import { useData } from "../context/DataContext"
+import { startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, parseISO } from "date-fns"
 
 export function CampaignsPage() {
-    const { isFacebookConnected, isFbLoading, facebookCredentials } = useData()
+    const { isFacebookConnected, facebookCredentials } = useData()
     const navigate = useNavigate()
     const [campaigns, setCampaigns] = useState<CampaignData[]>([])
     const [error, setError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
 
+    // Date Filter State
+    const [dateFilter, setDateFilter] = useState("last_30_days")
+    const [customStartDate, setCustomStartDate] = useState("")
+    const [customEndDate, setCustomEndDate] = useState("")
+
+    // Calculate initial date range
+    const [currentRange, setCurrentRange] = useState<{ from: Date, to: Date }>(() => {
+        const now = new Date()
+        return { from: subDays(now, 30), to: now }
+    })
+
     useEffect(() => {
         if (isFacebookConnected && facebookCredentials?.accessToken) {
-            loadCampaigns(facebookCredentials.accessToken)
+            // Initial load with default range
+            loadCampaigns(facebookCredentials.accessToken, currentRange.from, currentRange.to)
         }
     }, [isFacebookConnected, facebookCredentials])
 
-    const loadCampaigns = async (token: string) => {
+    const loadCampaigns = async (token: string, start: Date, end: Date) => {
         setIsLoading(true)
         setError(null)
         try {
             const accounts = await facebookAdsService.getAdAccounts(token)
             if (accounts && accounts.length > 0) {
-                // Fetch campaigns from the first 5 accounts to find data
-                // This handles cases where the main account isn't the first one
                 const accountsToCheck = accounts.slice(0, 5);
                 let allCampaigns: CampaignData[] = [];
 
                 for (const account of accountsToCheck) {
-                    const accountCampaigns = await facebookAdsService.getCampaigns(account.id, token);
+                    const accountCampaigns = await facebookAdsService.getCampaigns(account.id, token, start, end);
                     if (accountCampaigns.length > 0) {
                         allCampaigns = [...allCampaigns, ...accountCampaigns];
                     }
@@ -45,7 +56,8 @@ export function CampaignsPage() {
                 if (allCampaigns.length > 0) {
                     setCampaigns(allCampaigns)
                 } else {
-                    setError("Nenhuma campanha encontrada nas suas contas de anúncio.")
+                    setCampaigns([]) // Clear if no campaigns found
+                    // Don't set error here, just empty list is fine
                 }
             } else {
                 setError("Nenhuma conta de anúncios encontrada.")
@@ -58,14 +70,37 @@ export function CampaignsPage() {
         }
     }
 
+    const handleApplyFilter = () => {
+        if (!facebookCredentials?.accessToken) return
 
+        const now = new Date()
+        let from = now
+        let to = now
+
+        if (dateFilter === 'all') {
+            from = new Date(2020, 0, 1)
+            to = now
+        } else if (dateFilter === 'today') {
+            from = startOfDay(now)
+            to = endOfDay(now)
+        } else if (dateFilter === 'this_month') {
+            from = startOfMonth(now)
+            to = endOfMonth(now)
+        } else if (dateFilter === 'last_30_days') {
+            from = subDays(now, 30)
+            to = now
+        } else if (dateFilter === 'custom' && customStartDate && customEndDate) {
+            from = parseISO(customStartDate)
+            to = endOfDay(parseISO(customEndDate))
+        }
+
+        setCurrentRange({ from, to })
+        loadCampaigns(facebookCredentials.accessToken, from, to)
+    }
 
     // Calculate totals
     const totalSpend = campaigns.reduce((acc, curr) => acc + curr.spend, 0)
     const totalSales = campaigns.reduce((acc, curr) => acc + curr.sales, 0)
-    // Weighted average or sum? ROAS is usually Total Sales Value / Total Spend. 
-    // Since we calculated ROAS per campaign based on mock sales value, let's sum up sales value first.
-    // Mock sales value = conversions * 150 (from service)
     const totalSalesValue = totalSales * 150
     const totalRoas = totalSpend > 0 ? totalSalesValue / totalSpend : 0
     const totalCpa = totalSales > 0 ? totalSpend / totalSales : 0
@@ -104,13 +139,11 @@ export function CampaignsPage() {
                 </div>
             </div>
 
-
-
             {/* Metric Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Gasto Total (30d)</CardTitle>
+                        <CardTitle className="text-sm font-medium">Gasto Total</CardTitle>
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -174,16 +207,42 @@ export function CampaignsPage() {
                         className="pl-8 w-full md:w-[300px]"
                     />
                 </div>
-                <Select defaultValue="30d">
+
+                <Select value={dateFilter} onValueChange={setDateFilter}>
                     <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Período" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="7d">Últimos 7 dias</SelectItem>
-                        <SelectItem value="30d">Últimos 30 dias</SelectItem>
-                        <SelectItem value="90d">Últimos 90 dias</SelectItem>
+                        <SelectItem value="all">Todo o período</SelectItem>
+                        <SelectItem value="today">Hoje</SelectItem>
+                        <SelectItem value="this_month">Este Mês</SelectItem>
+                        <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
+                        <SelectItem value="custom">Personalizado</SelectItem>
                     </SelectContent>
                 </Select>
+
+                {dateFilter === 'custom' && (
+                    <div className="flex gap-2">
+                        <Input
+                            type="date"
+                            value={customStartDate}
+                            onChange={(e) => setCustomStartDate(e.target.value)}
+                            className="w-auto"
+                        />
+                        <Input
+                            type="date"
+                            value={customEndDate}
+                            onChange={(e) => setCustomEndDate(e.target.value)}
+                            className="w-auto"
+                        />
+                    </div>
+                )}
+
+                <Button onClick={handleApplyFilter} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                    Aplicar
+                </Button>
+
                 <Select defaultValue="all">
                     <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Status" />
@@ -192,16 +251,6 @@ export function CampaignsPage() {
                         <SelectItem value="all">Todos os Status</SelectItem>
                         <SelectItem value="active">Ativo</SelectItem>
                         <SelectItem value="paused">Pausado</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Select defaultValue="conversions">
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Objetivo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="conversions">Conversões</SelectItem>
-                        <SelectItem value="traffic">Tráfego</SelectItem>
-                        <SelectItem value="engagement">Engajamento</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -235,7 +284,7 @@ export function CampaignsPage() {
                         ) : campaigns.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={9} className="h-24 text-center">
-                                    Nenhuma campanha encontrada.
+                                    {error ? <span className="text-red-500">{error}</span> : "Nenhuma campanha encontrada."}
                                 </TableCell>
                             </TableRow>
                         ) : (

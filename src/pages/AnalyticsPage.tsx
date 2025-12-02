@@ -1,41 +1,64 @@
 import { useState, useEffect } from "react"
-import { CalendarDateRangePicker } from "../components/DateRangePicker"
+import { useData } from "../context/DataContext"
 import { OverviewCards } from "../components/analytics/OverviewCards"
 import { SalesChart } from "../components/analytics/SalesChart"
 import { SalesHeatmap } from "../components/analytics/SalesHeatmap"
-
 import { ProductPerformance } from "../components/analytics/ProductPerformance"
 import { RetentionMetrics } from "../components/analytics/RetentionMetrics"
 import { BrazilMap } from "../components/analytics/BrazilMap"
 import { Button } from "../components/ui/button"
-import { Download, RefreshCw, Loader2 } from "lucide-react"
-import { useData } from "../context/DataContext"
-import { type DateRange } from "react-day-picker"
-import { subDays } from "date-fns"
+import { RefreshCw, Download, Loader2, Search } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select"
+import { Input } from "../components/ui/input"
+import { startOfMonth, endOfMonth, subDays, format, startOfDay, endOfDay, parseISO } from "date-fns"
 
 export function AnalyticsPage() {
-    const { data, isLoading, syncAnalytics, credentials } = useData()
-    const [date, setDate] = useState<DateRange | undefined>({
-        from: subDays(new Date(), 30),
-        to: new Date(),
+    const { data, syncAnalytics, isLoading, credentials } = useData()
+
+    // Date Filter State
+    const [dateFilter, setDateFilter] = useState("this_month")
+    const [customStartDate, setCustomStartDate] = useState("")
+    const [customEndDate, setCustomEndDate] = useState("")
+
+    // Calculate initial date range based on "this_month"
+    const [currentRange, setCurrentRange] = useState<{ from: Date, to: Date }>(() => {
+        const now = new Date()
+        return { from: startOfMonth(now), to: endOfMonth(now) }
     })
 
-    // Sync data when date changes or credentials load
+    // Initial sync on mount
     useEffect(() => {
-        if (credentials && date?.from && date?.to) {
-            syncAnalytics(credentials, date.from, date.to)
+        if (credentials && (!data?.sales || data.sales.length === 0)) {
+            syncAnalytics(credentials, currentRange.from, currentRange.to)
         }
-    }, [credentials, date?.from, date?.to]) // Sync whenever credentials or date changes
+    }, [credentials])
 
-    const handleRefresh = async () => {
-        if (date?.from && date?.to) {
-            await syncAnalytics(credentials, date.from, date.to, true)
-        } else {
-            await syncAnalytics(credentials, undefined, undefined, true)
+    const handleApplyFilter = () => {
+        const now = new Date()
+        let from = now
+        let to = now
+
+        if (dateFilter === 'all') {
+            // "All time" - using a wide range
+            from = new Date(2020, 0, 1)
+            to = now
+        } else if (dateFilter === 'today') {
+            from = startOfDay(now)
+            to = endOfDay(now)
+        } else if (dateFilter === 'this_month') {
+            from = startOfMonth(now)
+            to = endOfMonth(now)
+        } else if (dateFilter === 'last_30_days') {
+            from = subDays(now, 30)
+            to = now
+        } else if (dateFilter === 'custom' && customStartDate && customEndDate) {
+            from = parseISO(customStartDate)
+            to = endOfDay(parseISO(customEndDate))
         }
+
+        setCurrentRange({ from, to })
+        syncAnalytics(credentials, from, to)
     }
-
-    console.log('AnalyticsPage Data:', data);
 
     // Combine sales data with customer count for OverviewCards
     const overviewData = data?.sales && data.sales.length > 0 ? {
@@ -53,19 +76,47 @@ export function AnalyticsPage() {
         total_customers: data.customers?.total || 0
     } : undefined
 
-    console.log('Overview Data Calculated:', overviewData);
-
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
             <div className="flex items-center justify-between space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight">Análises</h2>
                 <div className="flex items-center space-x-2">
-                    <CalendarDateRangePicker date={date} setDate={setDate} />
-                    <Button size="sm" variant="outline" onClick={handleRefresh} disabled={isLoading}>
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                        Atualizar
+                    <Select value={dateFilter} onValueChange={setDateFilter}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Período" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todo o período</SelectItem>
+                            <SelectItem value="today">Hoje</SelectItem>
+                            <SelectItem value="this_month">Este Mês</SelectItem>
+                            <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
+                            <SelectItem value="custom">Personalizado</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {dateFilter === 'custom' && (
+                        <div className="flex gap-2">
+                            <Input
+                                type="date"
+                                value={customStartDate}
+                                onChange={(e) => setCustomStartDate(e.target.value)}
+                                className="w-auto"
+                            />
+                            <Input
+                                type="date"
+                                value={customEndDate}
+                                onChange={(e) => setCustomEndDate(e.target.value)}
+                                className="w-auto"
+                            />
+                        </div>
+                    )}
+
+                    <Button onClick={handleApplyFilter} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                        Aplicar
                     </Button>
-                    <Button size="sm">
+
+                    <Button variant="default" className="bg-black hover:bg-gray-800">
                         <Download className="mr-2 h-4 w-4" />
                         Exportar
                     </Button>
