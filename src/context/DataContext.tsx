@@ -41,6 +41,7 @@ interface DataContextType {
     syncAnalytics: (credsToUse?: WooCommerceCredentials | null, startDate?: Date, endDate?: Date, force?: boolean) => Promise<void>;
     syncCatalog: (credsToUse?: WooCommerceCredentials | null, force?: boolean) => Promise<void>;
     getProductVariations: (productId: number) => Promise<any[]>;
+    updateProduct: (productId: number, data: any) => Promise<any>;
     updateStoreSettings: (name: string, logo: string | null) => Promise<void>;
     setGlobalDateFilter: (filter: string, start: string, end: string) => void;
     dateFilter: string;
@@ -644,6 +645,50 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             return [];
         }
     };
+
+    const updateProduct = async (productId: number, updateData: any) => {
+        if (!credentials) return null;
+        try {
+            const { url, consumerKey, consumerSecret } = credentials;
+            const auth = btoa(`${consumerKey}:${consumerSecret}`);
+
+            const targetUrl = `${url.replace(/\/$/, '')}/wp-json/wc/v3`;
+            const fullUrl = `${targetUrl}/products/${productId}`;
+            const proxyUrl = `/api/proxy?url=${encodeURIComponent(fullUrl)}`;
+
+            const headers = {
+                Authorization: `Basic ${auth}`,
+                'Content-Type': 'application/json'
+            };
+
+            const response = await fetch(proxyUrl, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(updateData)
+            });
+
+            if (response.ok) {
+                const updatedProduct = await response.json();
+
+                // Update local state
+                setData(prev => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        productsList: prev.productsList.map(p => p.id === productId ? updatedProduct : p)
+                    };
+                });
+
+                return updatedProduct;
+            } else {
+                throw new Error('Failed to update product');
+            }
+        } catch (error) {
+            console.error(`Error updating product ${productId}:`, error);
+            throw error;
+        }
+    };
+
     return (
         <DataContext.Provider value={{
             credentials,
@@ -663,6 +708,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             syncAnalytics,
             syncCatalog,
             getProductVariations,
+            updateProduct,
             updateStoreSettings,
             setGlobalDateFilter,
             dateFilter,

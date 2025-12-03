@@ -10,9 +10,10 @@ import { Eye, Edit, RefreshCw, Download, AlertTriangle, TrendingUp, CreditCard, 
 import { ABCCurveAnalysis } from "@/components/analytics/ABCCurveAnalysis"
 import type { DateRange } from "react-day-picker"
 import { subDays } from "date-fns"
+import { EditProductModal } from "@/components/products/EditProductModal"
 
 export function ProductsPage() {
-    const { data, syncCatalog, syncAnalytics, isLoading, getProductVariations, credentials } = useData()
+    const { data, syncCatalog, syncAnalytics, isLoading, getProductVariations, credentials, updateProduct } = useData()
     const [searchTerm, setSearchTerm] = useState("")
     const [categoryFilter, setCategoryFilter] = useState("all")
     const [statusFilter, setStatusFilter] = useState("all")
@@ -36,6 +37,10 @@ export function ProductsPage() {
     const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
     const [variationsData, setVariationsData] = useState<Record<number, any[]>>({})
     const [loadingVariations, setLoadingVariations] = useState<Record<number, boolean>>({})
+
+    // Edit Modal State
+    const [editingProduct, setEditingProduct] = useState<any>(null)
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
     const products = data?.productsList || []
 
@@ -103,6 +108,17 @@ export function ProductsPage() {
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+    }
+
+    const handleEditClick = (product: any) => {
+        setEditingProduct(product)
+        setIsEditModalOpen(true)
+    }
+
+    const handleSaveProduct = async (productId: number, data: any) => {
+        if (updateProduct) {
+            await updateProduct(productId, data)
+        }
     }
 
     return (
@@ -282,7 +298,7 @@ export function ProductsPage() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end gap-2">
-                                                        <Button variant="outline" size="sm" className="h-8">
+                                                        <Button variant="outline" size="sm" className="h-8" onClick={() => handleEditClick(product)}>
                                                             <Edit className="mr-2 h-3 w-3" />
                                                             Editar
                                                         </Button>
@@ -393,6 +409,13 @@ export function ProductsPage() {
                         syncAnalytics(credentials, range.from, range.to)
                     }
                 }}
+            />
+
+            <EditProductModal
+                product={editingProduct}
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSave={handleSaveProduct}
             />
         </div>
     )
