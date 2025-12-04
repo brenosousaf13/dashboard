@@ -20,12 +20,19 @@ export default async function handler(req, res) {
     }
 
     try {
-        const response = await fetch(url, {
+        const fetchOptions = {
+            method: req.method,
             headers: {
                 'Authorization': req.headers.authorization || '',
                 'Content-Type': 'application/json'
             }
-        });
+        };
+
+        if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+            fetchOptions.body = JSON.stringify(req.body);
+        }
+
+        const response = await fetch(url, fetchOptions);
 
         const data = await response.json();
 
