@@ -22,7 +22,8 @@ const proxyMiddleware = (): Plugin => {
             method: req.method,
             headers: {
               'Authorization': req.headers['authorization'] || '',
-              'Content-Type': 'application/json'
+              'Content-Type': req.headers['content-type'] || 'application/json',
+              'Content-Disposition': req.headers['content-disposition'] || ''
             }
           };
 
@@ -31,8 +32,8 @@ const proxyMiddleware = (): Plugin => {
             for await (const chunk of req) {
               buffers.push(chunk);
             }
-            const data = Buffer.concat(buffers).toString();
-            if (data) {
+            const data = Buffer.concat(buffers);
+            if (data.length > 0) {
               fetchOptions.body = data;
             }
           }

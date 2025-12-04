@@ -43,6 +43,7 @@ interface DataContextType {
     getProductVariations: (productId: number) => Promise<any[]>;
     updateProduct: (productId: number, data: any) => Promise<any>;
     updateProductVariation: (productId: number, variationId: number, data: any) => Promise<any>;
+    uploadImage: (file: File) => Promise<any>;
     updateStoreSettings: (name: string, logo: string | null) => Promise<void>;
     setGlobalDateFilter: (filter: string, start: string, end: string) => void;
     dateFilter: string;
@@ -723,6 +724,41 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const uploadImage = async (file: File) => {
+        if (!credentials) return null;
+        try {
+            const { url, consumerKey, consumerSecret } = credentials;
+            const auth = btoa(`${consumerKey}:${consumerSecret}`);
+
+            const targetUrl = `${url.replace(/\/$/, '')}/wp-json/wp/v2/media`;
+            const proxyUrl = `/api/proxy?url=${encodeURIComponent(targetUrl)}`;
+
+            const headers = {
+                Authorization: `Basic ${auth}`,
+                'Content-Type': file.type,
+                'Content-Disposition': `attachment; filename="${file.name}"`
+            };
+
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
+                headers,
+                body: file
+            });
+
+            if (response.ok) {
+                const uploadedImage = await response.json();
+                return uploadedImage;
+            } else {
+                const errorText = await response.text();
+                console.error("Upload failed:", errorText);
+                throw new Error('Failed to upload image');
+            }
+        } catch (error) {
+            console.error(`Error uploading image:`, error);
+            throw error;
+        }
+    };
+
     return (
         <DataContext.Provider value={{
             credentials,
@@ -744,6 +780,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             getProductVariations,
             updateProduct,
             updateProductVariation,
+            uploadImage,
             updateStoreSettings,
             setGlobalDateFilter,
             dateFilter,
