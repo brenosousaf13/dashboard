@@ -444,8 +444,14 @@ export function ProductsPage() {
             <EditProductModal
                 product={editingVariation || editingProduct}
                 isOpen={isEditModalOpen}
-                onClose={() => setIsEditModalOpen(false)}
+                onClose={() => {
+                    setIsEditModalOpen(false)
+                    setEditingProduct(null)
+                    setEditingVariation(null)
+                    setParentProduct(null)
+                }}
                 onSave={handleSave}
+                categories={categories}
             />
         </div>
     )
