@@ -42,6 +42,7 @@ interface DataContextType {
     syncCatalog: (credsToUse?: WooCommerceCredentials | null, force?: boolean) => Promise<void>;
     getProductVariations: (productId: number) => Promise<any[]>;
     updateProduct: (productId: number, data: any) => Promise<any>;
+    updateProductVariation: (productId: number, variationId: number, data: any) => Promise<any>;
     updateStoreSettings: (name: string, logo: string | null) => Promise<void>;
     setGlobalDateFilter: (filter: string, start: string, end: string) => void;
     dateFilter: string;
@@ -689,6 +690,39 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const updateProductVariation = async (productId: number, variationId: number, updateData: any) => {
+        if (!credentials) return null;
+        try {
+            const { url, consumerKey, consumerSecret } = credentials;
+            const auth = btoa(`${consumerKey}:${consumerSecret}`);
+
+            const targetUrl = `${url.replace(/\/$/, '')}/wp-json/wc/v3`;
+            const fullUrl = `${targetUrl}/products/${productId}/variations/${variationId}`;
+            const proxyUrl = `/api/proxy?url=${encodeURIComponent(fullUrl)}`;
+
+            const headers = {
+                Authorization: `Basic ${auth}`,
+                'Content-Type': 'application/json'
+            };
+
+            const response = await fetch(proxyUrl, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(updateData)
+            });
+
+            if (response.ok) {
+                const updatedVariation = await response.json();
+                return updatedVariation;
+            } else {
+                throw new Error('Failed to update variation');
+            }
+        } catch (error) {
+            console.error(`Error updating variation ${variationId} of product ${productId}:`, error);
+            throw error;
+        }
+    };
+
     return (
         <DataContext.Provider value={{
             credentials,
@@ -709,6 +743,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             syncCatalog,
             getProductVariations,
             updateProduct,
+            updateProductVariation,
             updateStoreSettings,
             setGlobalDateFilter,
             dateFilter,

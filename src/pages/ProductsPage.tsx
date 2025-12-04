@@ -13,7 +13,7 @@ import { subDays } from "date-fns"
 import { EditProductModal } from "@/components/products/EditProductModal"
 
 export function ProductsPage() {
-    const { data, syncCatalog, syncAnalytics, isLoading, getProductVariations, credentials, updateProduct } = useData()
+    const { data, syncCatalog, syncAnalytics, isLoading, getProductVariations, credentials, updateProduct, updateProductVariation } = useData()
     const [searchTerm, setSearchTerm] = useState("")
     const [categoryFilter, setCategoryFilter] = useState("all")
     const [statusFilter, setStatusFilter] = useState("all")
@@ -40,6 +40,8 @@ export function ProductsPage() {
 
     // Edit Modal State
     const [editingProduct, setEditingProduct] = useState<any>(null)
+    const [editingVariation, setEditingVariation] = useState<any>(null)
+    const [parentProduct, setParentProduct] = useState<any>(null)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
     const products = data?.productsList || []
@@ -112,12 +114,35 @@ export function ProductsPage() {
 
     const handleEditClick = (product: any) => {
         setEditingProduct(product)
+        setEditingVariation(null)
+        setParentProduct(null)
         setIsEditModalOpen(true)
     }
 
-    const handleSaveProduct = async (productId: number, data: any) => {
-        if (updateProduct) {
-            await updateProduct(productId, data)
+    const handleEditVariationClick = (variation: any, parent: any) => {
+        // Create a display name for the variation based on attributes
+        const variationName = `${parent.name} - ${variation.attributes.map((attr: any) => attr.option).join(', ')}`
+
+        setEditingProduct(null)
+        setEditingVariation({ ...variation, name: variationName }) // Add name for the modal
+        setParentProduct(parent)
+        setIsEditModalOpen(true)
+    }
+
+    const handleSave = async (id: number, data: any) => {
+        if (editingVariation && parentProduct && updateProductVariation) {
+            // Updating a variation
+            await updateProductVariation(parentProduct.id, id, data)
+
+            // Refresh variations data locally
+            const updatedVariations = variationsData[parentProduct.id].map(v =>
+                v.id === id ? { ...v, ...data, price: data.sale_price || data.regular_price } : v
+            )
+            setVariationsData(prev => ({ ...prev, [parentProduct.id]: updatedVariations }))
+
+        } else if (updateProduct) {
+            // Updating a main product
+            await updateProduct(id, data)
         }
     }
 
@@ -342,9 +367,14 @@ export function ProductsPage() {
                                                                                     </div>
                                                                                 </TableCell>
                                                                                 <TableCell className="text-right">
-                                                                                    <Button variant="ghost" size="sm" className="h-8 w-8" onClick={() => window.open(variation.permalink, '_blank')}>
-                                                                                        <Eye className="h-3 w-3" />
-                                                                                    </Button>
+                                                                                    <div className="flex justify-end gap-2">
+                                                                                        <Button variant="outline" size="sm" className="h-8 w-8" onClick={() => handleEditVariationClick(variation, product)}>
+                                                                                            <Edit className="h-3 w-3" />
+                                                                                        </Button>
+                                                                                        <Button variant="ghost" size="sm" className="h-8 w-8" onClick={() => window.open(variation.permalink, '_blank')}>
+                                                                                            <Eye className="h-3 w-3" />
+                                                                                        </Button>
+                                                                                    </div>
                                                                                 </TableCell>
                                                                             </TableRow>
                                                                         ))}
@@ -412,10 +442,10 @@ export function ProductsPage() {
             />
 
             <EditProductModal
-                product={editingProduct}
+                product={editingVariation || editingProduct}
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
-                onSave={handleSaveProduct}
+                onSave={handleSave}
             />
         </div>
     )
