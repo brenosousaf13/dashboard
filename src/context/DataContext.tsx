@@ -50,8 +50,6 @@ interface DataContextType {
     customStartDate: string;
     customEndDate: string;
     lastSyncRange: { start?: Date; end?: Date } | null;
-    syncStatus: 'idle' | 'syncing' | 'error';
-    lastSyncTime: Date | null;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -66,8 +64,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [isFbLoading, setIsFbLoading] = useState(false);
     const [data, setData] = useState<DashboardData | null>(null);
     const [lastSyncRange, setLastSyncRange] = useState<{ start?: Date; end?: Date } | null>(null);
-    const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
-    const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+
     const [storeName, setStoreName] = useState("Loja Exemplo");
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
@@ -165,10 +162,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setIsConnected(true);
                     // Auto-sync data when credentials are loaded
                     console.log('fetchProfile: Triggering syncData');
-                    // First load from cache, then trigger background sync
-                    loadFromCache(user.id).then(() => {
-                        syncData(creds);
-                    });
+                    syncData(creds);
                 } else {
                     console.log('fetchProfile: No WooCommerce credentials found');
                 }
@@ -626,114 +620,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const loadFromCache = async (userId: string) => {
-        setIsLoading(true);
-        try {
-            console.log('Loading data from Supabase cache...');
 
-            // Load Orders
-            const { data: orders } = await supabase
-                .from('wc_orders')
-                .select('raw_data')
-                .eq('user_id', userId);
-
-            // Load Products
-            const { data: products } = await supabase
-                .from('wc_products')
-                .select('raw_data')
-                .eq('user_id', userId);
-
-            // Load Customers
-            const { data: customers } = await supabase
-                .from('wc_customers')
-                .select('raw_data')
-                .eq('user_id', userId);
-
-            // Load Analytics (Sales)
-            // Note: For now we might need to recalculate analytics from orders or store daily stats
-            // For simplicity in this step, let's assume we fetch recent orders and calculate basic stats
-            // or fetch from wc_analytics_daily if implemented.
-
-            // Reconstruct DashboardData
-            const parsedOrders = orders?.map(o => o.raw_data) || [];
-            const parsedProducts = products?.map(p => p.raw_data) || [];
-            const parsedCustomers = customers?.map(c => c.raw_data) || [];
-
-            // Basic Analytics reconstruction (simplified)
-            // In a real scenario, we would query wc_analytics_daily
-            const salesData: any[] = []; // Placeholder for now
-
-            setData({
-                sales: salesData,
-                products: [], // Top sellers placeholder
-                orders: parsedOrders,
-                productsList: parsedProducts,
-                customersList: parsedCustomers,
-                customers: { total: parsedCustomers.length }
-            });
-
-            // Check last sync time
-            const { data: lastLog } = await supabase
-                .from('sync_logs')
-                .select('completed_at')
-                .eq('user_id', userId)
-                .eq('status', 'completed')
-                .order('completed_at', { ascending: false })
-                .limit(1)
-                .single();
-
-            if (lastLog?.completed_at) {
-                setLastSyncTime(new Date(lastLog.completed_at));
-            }
-
-        } catch (error) {
-            console.error('Error loading from cache:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     const syncData = async (credsToUse = credentials, startDate?: Date, endDate?: Date, force = false) => {
-        if (!user) return;
+        if (!credsToUse) return;
 
-        setSyncStatus('syncing');
-        try {
-            // Trigger background sync via API
-            const response = await fetch('/api/sync', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    userId: user.id,
-                    type: 'all',
-                    full: force // Full sync if forced (e.g. first connect)
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to trigger background sync');
-            }
-
-            const result = await response.json();
-            console.log('Background sync triggered:', result);
-
-            // Poll for completion or just reload cache after a delay?
-            // For better UX, we should probably listen to Supabase Realtime on sync_logs
-            // But for now, let's just reload cache after the request returns (which waits for sync in serverless)
-            // Note: Vercel functions have timeout. If sync is long, it might timeout.
-            // Ideally, the API should return immediately and we poll.
-            // But the current implementation of api/sync.ts awaits the sync. 
-            // So when it returns, it's done.
-
-            await loadFromCache(user.id);
-            setSyncStatus('idle');
-            setLastSyncTime(new Date());
-
-        } catch (error) {
-            console.error('Sync Error:', error);
-            setSyncStatus('error');
-        }
+        console.log('syncData: Starting full sync...');
+        // Run both syncs in parallel or sequence
+        await Promise.all([
+            syncAnalytics(credsToUse, startDate, endDate, force),
+            syncCatalog(credsToUse, force)
+        ]);
+        console.log('syncData: Full sync completed');
     };
 
     const getProductVariations = async (productId: number) => {
@@ -897,9 +795,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             dateFilter,
             customStartDate,
             customEndDate,
-            lastSyncRange,
-            syncStatus,
-            lastSyncTime
+            lastSyncRange
         }}>
             {children}
         </DataContext.Provider>

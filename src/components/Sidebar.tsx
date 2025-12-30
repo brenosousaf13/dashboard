@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { BarChart3, ChevronLeft, ChevronRight, Settings, ShoppingBag, Users, Package, Megaphone, LogOut, LineChart, RefreshCw } from "lucide-react"
+import { BarChart3, ChevronLeft, ChevronRight, Settings, ShoppingBag, Users, Package, Megaphone, LogOut, LineChart } from "lucide-react"
 import { cn } from "../lib/utils"
 import { Button } from "./ui/button"
 import { Link, useLocation } from "react-router-dom"
@@ -12,7 +12,7 @@ export function Sidebar() {
     const [isStoreModalOpen, setIsStoreModalOpen] = useState(false)
     const location = useLocation()
     const { signOut, user } = useAuth()
-    const { storeName, logoUrl, syncStatus, lastSyncTime, syncData } = useData()
+    const { storeName, logoUrl } = useData()
 
     return (
         <div
@@ -78,25 +78,7 @@ export function Sidebar() {
             </div>
 
             <div className="border-t p-4">
-                {!isCollapsed && (
-                    <div className="mb-4 px-2 py-2 bg-accent/20 rounded-md text-xs text-muted-foreground">
-                        <div className="flex items-center justify-between mb-1">
-                            <span>Última Sincronização:</span>
-                            <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => syncData(undefined, undefined, undefined, true)} disabled={syncStatus === 'syncing'}>
-                                <RefreshCw className={cn("h-3 w-3", syncStatus === 'syncing' && "animate-spin")} />
-                            </Button>
-                        </div>
-                        <div>
-                            {syncStatus === 'syncing' ? (
-                                <span className="text-blue-500">Sincronizando...</span>
-                            ) : lastSyncTime ? (
-                                lastSyncTime.toLocaleString()
-                            ) : (
-                                "Nunca"
-                            )}
-                        </div>
-                    </div>
-                )}
+
 
                 <div
                     className={cn(
