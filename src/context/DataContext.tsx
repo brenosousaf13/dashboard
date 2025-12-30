@@ -180,7 +180,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
-            console.log('fetchProfile: Data received:', data);
+            // console.log('fetchProfile: Data received:', data);
 
             if (data) {
                 if (data.store_name) setStoreName(data.store_name);
