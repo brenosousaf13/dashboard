@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { BarChart3, ChevronLeft, ChevronRight, Settings, ShoppingBag, Users, Package, Megaphone, LogOut } from "lucide-react"
+import { BarChart3, ChevronLeft, ChevronRight, Settings, ShoppingBag, Users, Package, Megaphone, LogOut, LineChart } from "lucide-react"
 import { cn } from "../lib/utils"
 import { Button } from "./ui/button"
 import { Link, useLocation } from "react-router-dom"
@@ -56,6 +56,14 @@ export function Sidebar() {
                         label="Campanhas"
                         to="/campaigns"
                         isActive={location.pathname === "/campaigns"}
+                        isCollapsed={isCollapsed}
+                    />
+
+                    <NavItem
+                        icon={LineChart}
+                        label="Google Analytics"
+                        to="/google-analytics"
+                        isActive={location.pathname === "/google-analytics"}
                         isCollapsed={isCollapsed}
                     />
 
