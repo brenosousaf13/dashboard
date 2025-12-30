@@ -23,6 +23,18 @@ interface DashboardData {
     customers: { total: any };
 }
 
+interface GAProperty {
+    id: string;
+    name: string;
+    accountId: string;
+}
+
+interface GAData {
+    overview: any[];
+    topPages: any[];
+    sources: any[];
+}
+
 interface DataContextType {
     credentials: WooCommerceCredentials | null;
     facebookCredentials: FacebookCredentials | null;
@@ -50,6 +62,18 @@ interface DataContextType {
     customStartDate: string;
     customEndDate: string;
     lastSyncRange: { start?: Date; end?: Date } | null;
+
+    // Google Analytics
+    googleConnected: boolean;
+    gaPropertyId: string | null;
+    gaProperties: GAProperty[];
+    gaData: GAData | null;
+    isGaLoading: boolean;
+    connectGoogle: () => void;
+    disconnectGoogle: () => Promise<void>;
+    fetchGaProperties: () => Promise<void>;
+    setGaProperty: (propertyId: string) => Promise<void>;
+    fetchGaData: (startDate?: Date, endDate?: Date) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -64,6 +88,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [isFbLoading, setIsFbLoading] = useState(false);
     const [data, setData] = useState<DashboardData | null>(null);
     const [lastSyncRange, setLastSyncRange] = useState<{ start?: Date; end?: Date } | null>(null);
+
+    // Google Analytics State
+    const [googleConnected, setGoogleConnected] = useState(false);
+    const [gaPropertyId, setGaPropertyId] = useState<string | null>(null);
+    const [gaProperties, setGaProperties] = useState<GAProperty[]>([]);
+    const [gaData, setGaData] = useState<GAData | null>(null);
+    const [isGaLoading, setIsGaLoading] = useState(false);
 
     const [storeName, setStoreName] = useState("Loja Exemplo");
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -100,6 +131,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             setData(null);
             setStoreName("Loja Exemplo");
             setLogoUrl(null);
+            setGoogleConnected(false);
+            setGaPropertyId(null);
+            setGaProperties([]);
+            setGaData(null);
             // Reset date filter on logout
             // Reset date filter on logout and clear localStorage
             setDateFilter('last_30_days');
@@ -131,7 +166,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('woocommerce_url, woocommerce_consumer_key, woocommerce_consumer_secret, facebook_app_id, facebook_access_token, store_name, logo_url')
+                .select('woocommerce_url, woocommerce_consumer_key, woocommerce_consumer_secret, facebook_app_id, facebook_access_token, store_name, logo_url, google_access_token, ga_property_id')
                 .eq('id', user.id)
                 .single();
 
@@ -176,6 +211,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     setIsFacebookConnected(true);
                 } else {
                     console.log('fetchProfile: No Facebook credentials found');
+                }
+
+                if (data.google_access_token) {
+                    console.log('fetchProfile: Found Google credentials');
+                    setGoogleConnected(true);
+                    if (data.ga_property_id) {
+                        setGaPropertyId(data.ga_property_id);
+                    }
                 }
             }
         } catch (error) {
@@ -768,6 +811,143 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    // Google Analytics Functions
+    const connectGoogle = () => {
+        if (!user) return;
+        // Redirect to backend auth endpoint
+        window.location.href = `/api/auth/google?userId=${user.id}`;
+    };
+
+    const disconnectGoogle = async () => {
+        if (!user) return;
+        try {
+            await supabase.from('profiles').update({
+                google_access_token: null,
+                google_refresh_token: null,
+                google_token_expires_at: null,
+                ga_property_id: null
+            }).eq('id', user.id);
+
+            setGoogleConnected(false);
+            setGaPropertyId(null);
+            setGaProperties([]);
+            setGaData(null);
+        } catch (error) {
+            console.error('Error disconnecting Google:', error);
+        }
+    };
+
+    const fetchGaProperties = async () => {
+        if (!user || !googleConnected) return;
+        setIsGaLoading(true);
+        try {
+            const response = await fetch(`/api/analytics/properties?userId=${user.id}`);
+            if (response.ok) {
+                const data = await response.json();
+                setGaProperties(data.properties || []);
+            } else {
+                console.error('Failed to fetch GA properties');
+            }
+        } catch (error) {
+            console.error('Error fetching GA properties:', error);
+        } finally {
+            setIsGaLoading(false);
+        }
+    };
+
+    const setGaProperty = async (propertyId: string) => {
+        if (!user) return;
+        try {
+            await supabase.from('profiles').update({ ga_property_id: propertyId }).eq('id', user.id);
+            setGaPropertyId(propertyId);
+            // Fetch data immediately after setting property
+            fetchGaData();
+        } catch (error) {
+            console.error('Error setting GA property:', error);
+        }
+    };
+
+    const fetchGaData = async (startDate?: Date, endDate?: Date) => {
+        if (!user || !googleConnected || !gaPropertyId) return;
+
+        // Determine dates
+        let start = startDate;
+        let end = endDate;
+
+        if (!start || !end) {
+            const now = new Date();
+            if (dateFilter === 'all') {
+                start = new Date(2020, 0, 1);
+                end = now;
+            } else if (dateFilter === 'today') {
+                start = startOfDay(now);
+                end = endOfDay(now);
+            } else if (dateFilter === 'this_month') {
+                start = startOfMonth(now);
+                end = endOfMonth(now);
+            } else if (dateFilter === 'last_30_days') {
+                start = subDays(now, 30);
+                end = now;
+            } else if (dateFilter === 'custom' && customStartDate && customEndDate) {
+                start = parseISO(customStartDate);
+                end = endOfDay(parseISO(customEndDate));
+            } else {
+                start = subDays(now, 30);
+                end = now;
+            }
+        }
+
+        setIsGaLoading(true);
+        try {
+            const response = await fetch('/api/analytics/data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.id,
+                    propertyId: gaPropertyId,
+                    startDate: start.toISOString().split('T')[0], // YYYY-MM-DD
+                    endDate: end.toISOString().split('T')[0]
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                // Process batch results
+                // Report 0: Overview
+                // Report 1: Top Pages
+                // Report 2: Sources
+
+                const overviewRows = result.reports?.[0]?.rows || [];
+                const topPagesRows = result.reports?.[1]?.rows || [];
+                const sourcesRows = result.reports?.[2]?.rows || [];
+
+                setGaData({
+                    overview: overviewRows.map((row: any) => ({
+                        date: row.dimensionValues[0].value,
+                        activeUsers: parseInt(row.metricValues[0].value),
+                        sessions: parseInt(row.metricValues[1].value),
+                        bounceRate: parseFloat(row.metricValues[2].value),
+                        avgDuration: parseFloat(row.metricValues[3].value)
+                    })),
+                    topPages: topPagesRows.map((row: any) => ({
+                        path: row.dimensionValues[0].value,
+                        views: parseInt(row.metricValues[0].value)
+                    })),
+                    sources: sourcesRows.map((row: any) => ({
+                        source: row.dimensionValues[0].value,
+                        sessions: parseInt(row.metricValues[0].value)
+                    }))
+                });
+            } else {
+                console.error('Failed to fetch GA data');
+            }
+        } catch (error) {
+            console.error('Error fetching GA data:', error);
+        } finally {
+            setIsGaLoading(false);
+        }
+    };
+
     return (
         <DataContext.Provider value={{
             credentials,
@@ -795,7 +975,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             dateFilter,
             customStartDate,
             customEndDate,
-            lastSyncRange
+            lastSyncRange,
+            googleConnected,
+            gaPropertyId,
+            gaProperties,
+            gaData,
+            isGaLoading,
+            connectGoogle,
+            disconnectGoogle,
+            fetchGaProperties,
+            setGaProperty,
+            fetchGaData
         }}>
             {children}
         </DataContext.Provider>
