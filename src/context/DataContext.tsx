@@ -93,9 +93,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
 
     useEffect(() => {
-        if (user) {
+        if (user?.id) {
             fetchProfile();
-        } else {
+        } else if (!user) {
             setCredentials(null);
             setFacebookCredentials(null);
             setIsConnected(false);
@@ -112,7 +112,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem('customStartDate');
             localStorage.removeItem('customEndDate');
         }
-    }, [user]);
+    }, [user?.id]);
 
     const setGlobalDateFilter = (filter: string, start: string, end: string) => {
         setDateFilter(filter);
