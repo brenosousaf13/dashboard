@@ -107,10 +107,10 @@ export function GoogleAnalyticsPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="flex-1 space-y-4 p-8 pt-6">
+            <div className="flex items-center justify-between space-y-2">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Google Analytics</h1>
+                    <h2 className="text-3xl font-bold tracking-tight">Google Analytics</h2>
                     <p className="text-muted-foreground">
                         Visão geral do tráfego e engajamento do seu site.
                     </p>
@@ -173,7 +173,7 @@ export function GoogleAnalyticsPage() {
                         </Card>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-7">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                         {/* Line Chart */}
                         <Card className="col-span-4">
                             <CardHeader>
