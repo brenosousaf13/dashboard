@@ -21,7 +21,8 @@ export function GoogleAnalyticsPage() {
         fetchGaData,
         gaWidgetsConfig,
         saveGaWidgetsConfig,
-        fetchGaProperties
+        fetchGaProperties,
+        isLoadingProfile
     } = useData();
 
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -49,6 +50,15 @@ export function GoogleAnalyticsPage() {
     const handleSaveWidgets = async (widgets: WidgetId[]) => {
         await saveGaWidgetsConfig(widgets);
     };
+
+    if (isLoadingProfile) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Verificando conexão...</p>
+            </div>
+        );
+    }
 
     if (!googleConnected) {
         return (

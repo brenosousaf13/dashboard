@@ -76,6 +76,7 @@ interface DataContextType {
     fetchGaProperties: () => Promise<void>;
     setGaProperty: (propertyId: string) => Promise<void>;
     fetchGaData: (widgetsToFetch?: string[], startDate?: Date, endDate?: Date) => Promise<void>;
+    isLoadingProfile: boolean;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -101,6 +102,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         'total_users', 'sessions', 'conversion_rate', 'total_revenue',
         'users_over_time', 'traffic_sources', 'top_pages', 'devices'
     ]);
+    const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
     const [storeName, setStoreName] = useState("Loja Exemplo");
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -169,10 +171,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             return;
         }
         console.log('fetchProfile: Fetching for user', user.id);
+        setIsLoadingProfile(true);
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('woocommerce_url, woocommerce_consumer_key, woocommerce_consumer_secret, facebook_app_id, facebook_access_token, store_name, logo_url, google_access_token, ga_property_id')
+                .select('woocommerce_url, woocommerce_consumer_key, woocommerce_consumer_secret, facebook_app_id, facebook_access_token, store_name, logo_url, google_access_token, ga_property_id, ga_widgets_config')
                 .eq('id', user.id)
                 .single();
 
@@ -236,6 +239,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             }
         } catch (error) {
             console.error('Error fetching profile:', error);
+        } finally {
+            setIsLoadingProfile(false);
         }
     };
 
@@ -1001,7 +1006,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             disconnectGoogle,
             fetchGaProperties,
             setGaProperty,
-            fetchGaData
+            fetchGaData,
+            isLoadingProfile
         }}>
             {children}
         </DataContext.Provider>
