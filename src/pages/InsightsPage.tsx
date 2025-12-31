@@ -1,92 +1,155 @@
-import { useEffect, useState } from "react";
-import { useData } from "../context/DataContext";
-import { InsightCategory } from "../components/insights/InsightCategory";
-import {
-    calculateAlerts,
-    calculateOpportunities,
-    calculatePerformance,
-    Insight
-} from "../components/insights/insightCalculators";
+import { useState, useRef, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { ChatMessage } from "../components/chat/ChatMessage";
+import { ChatInput } from "../components/chat/ChatInput";
+import { SuggestionCards } from "../components/chat/SuggestionCards";
+import { Bot, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+interface Message {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: Date;
+}
 
 export function InsightsPage() {
-    const {
-        data,
-        isLoading,
-        syncData,
-        credentials,
-        dateFilter,
-        customStartDate,
-        customEndDate
-    } = useData();
+    const { user } = useAuth();
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
 
-    const [alerts, setAlerts] = useState<Insight[]>([]);
-    const [opportunities, setOpportunities] = useState<Insight[]>([]);
-    const [performance, setPerformance] = useState<Insight[]>([]);
-    const [isCalculating, setIsCalculating] = useState(false);
-
-    const calculateInsights = () => {
-        if (!data) return;
-        setIsCalculating(true);
-
-        // Simulate calculation delay for better UX
-        setTimeout(() => {
-            const newAlerts = calculateAlerts(data.productsList || [], data.orders || []);
-            const newOpportunities = calculateOpportunities(data.orders || [], data.sales || []);
-            const newPerformance = calculatePerformance(data.sales || [], data.customersList || [], data.products || []);
-
-            setAlerts(newAlerts);
-            setOpportunities(newOpportunities);
-            setPerformance(newPerformance);
-            setIsCalculating(false);
-        }, 500);
-    };
-
-    useEffect(() => {
-        calculateInsights();
-    }, [data]);
-
-    const handleRefresh = async () => {
-        if (credentials) {
-            await syncData(credentials, undefined, undefined, true);
+    const scrollToBottom = () => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollIntoView({ behavior: "smooth" });
         }
     };
 
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    const handleSendMessage = async (content: string) => {
+        if (!content.trim()) return;
+
+        const newUserMessage: Message = {
+            id: Date.now().toString(),
+            role: 'user',
+            content,
+            timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, newUserMessage]);
+        setIsLoading(true);
+
+        try {
+            // Prepare messages for API (remove id and timestamp)
+            const apiMessages = [...messages, newUserMessage].map(m => ({
+                role: m.role,
+                content: m.content
+            }));
+
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: apiMessages,
+                    userId: user?.id
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch response');
+            }
+
+            const data = await response.json();
+
+            const newAssistantMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: data.message,
+                timestamp: new Date()
+            };
+
+            setMessages(prev => [...prev, newAssistantMessage]);
+        } catch (error) {
+            console.error('Error sending message:', error);
+            const errorMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.",
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleClearChat = () => {
+        setMessages([]);
+    };
+
     return (
-        <div className="p-8 pt-6 space-y-6 h-full">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                        <Sparkles className="w-8 h-8 text-yellow-500" />
-                        Insights Inteligentes
-                    </h2>
-                    <p className="text-muted-foreground">
-                        Descubra oportunidades e alertas importantes para seu negócio.
-                    </p>
+        <div className="flex flex-col h-[calc(100vh-4rem)] bg-background">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-card">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-full">
+                        <Bot className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            Noord AI
+                            <Sparkles className="h-4 w-4 text-yellow-500" />
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Seu especialista em e-commerce
+                        </p>
+                    </div>
                 </div>
-                <Button onClick={handleRefresh} disabled={isLoading || isCalculating}>
-                    <RefreshCw className={`mr-2 h-4 w-4 ${isLoading || isCalculating ? 'animate-spin' : ''}`} />
-                    Atualizar Insights
-                </Button>
+                {messages.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={handleClearChat} className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Nova Conversa
+                    </Button>
+                )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-                <InsightCategory
-                    title="Alertas"
-                    type="alert"
-                    insights={alerts}
-                />
-                <InsightCategory
-                    title="Oportunidades"
-                    type="opportunity"
-                    insights={opportunities}
-                />
-                <InsightCategory
-                    title="Performance"
-                    type="performance"
-                    insights={performance}
-                />
+            {/* Chat Area */}
+            <ScrollArea className="flex-1 p-4">
+                <div className="max-w-4xl mx-auto space-y-4 pb-4">
+                    {messages.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-8">
+                            <div className="text-center space-y-2">
+                                <h2 className="text-2xl font-bold">Como posso ajudar sua loja hoje?</h2>
+                                <p className="text-muted-foreground">
+                                    Escolha uma sugestão abaixo ou digite sua pergunta.
+                                </p>
+                            </div>
+                            <SuggestionCards onSelect={handleSendMessage} />
+                        </div>
+                    ) : (
+                        <>
+                            {messages.map((msg) => (
+                                <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
+                            ))}
+                            {isLoading && (
+                                <div className="flex items-center gap-2 text-muted-foreground p-4">
+                                    <Bot className="h-4 w-4 animate-bounce" />
+                                    <span className="text-sm">Digitando...</span>
+                                </div>
+                            )}
+                            <div ref={scrollRef} />
+                        </>
+                    )}
+                </div>
+            </ScrollArea>
+
+            {/* Input Area */}
+            <div className="max-w-4xl mx-auto w-full">
+                <ChatInput onSend={handleSendMessage} isLoading={isLoading} />
             </div>
         </div>
     );
