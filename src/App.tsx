@@ -7,6 +7,7 @@ import { SettingsPage } from "@/pages/SettingsPage"
 import { OrdersPage } from "@/pages/OrdersPage"
 import { CampaignsPage } from "@/pages/CampaignsPage"
 import { GoogleAnalyticsPage } from "@/pages/GoogleAnalyticsPage"
+import { InsightsPage } from "@/pages/InsightsPage"
 import { DataProvider } from "./context/DataContext"
 import { AuthProvider } from "./context/AuthContext"
 import { LoginPage } from "./pages/auth/LoginPage"
@@ -33,6 +34,7 @@ function App() {
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/campaigns" element={<CampaignsPage />} />
                 <Route path="/google-analytics" element={<GoogleAnalyticsPage />} />
+                <Route path="/insights" element={<InsightsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
