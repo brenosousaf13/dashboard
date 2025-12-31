@@ -188,30 +188,38 @@ export default async function handler(req, res) {
             return res.status(200).json({});
         }
 
-        // Batch Run Reports
-        const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/${propertyId}:batchRunReports`, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ requests })
-        });
-
-        if (!response.ok) {
-            const err = await response.json();
-            return res.status(response.status).json({ error: err.error?.message || 'Failed to fetch analytics data' });
-        }
-
-        const data = await response.json();
-
-        // Map responses back to widget IDs
+        // Batch Run Reports (Chunked)
+        const CHUNK_SIZE = 5;
         const result = {};
-        if (data.reports) {
-            data.reports.forEach((report, index) => {
-                const widgetId = widgetIdMap[index];
-                result[widgetId] = report;
+
+        for (let i = 0; i < requests.length; i += CHUNK_SIZE) {
+            const chunkRequests = requests.slice(i, i + CHUNK_SIZE);
+            const chunkWidgetIds = widgetIdMap.slice(i, i + CHUNK_SIZE);
+
+            const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/${propertyId}:batchRunReports`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ requests: chunkRequests })
             });
+
+            if (!response.ok) {
+                const err = await response.json();
+                // If one batch fails, we return error for now. 
+                // Alternatively we could continue and return partial results.
+                return res.status(response.status).json({ error: err.error?.message || 'Failed to fetch analytics data' });
+            }
+
+            const data = await response.json();
+
+            if (data.reports) {
+                data.reports.forEach((report, index) => {
+                    const widgetId = chunkWidgetIds[index];
+                    result[widgetId] = report;
+                });
+            }
         }
 
         res.status(200).json(result);
