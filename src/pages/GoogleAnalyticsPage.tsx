@@ -32,6 +32,14 @@ export function GoogleAnalyticsPage() {
         }
     }, [googleConnected]);
 
+    // Auto-load data when property is selected
+    useEffect(() => {
+        if (googleConnected && gaPropertyId) {
+            console.log('Auto-fetching GA data for property:', gaPropertyId);
+            fetchGaData();
+        }
+    }, [googleConnected, gaPropertyId]);
+
     const handleRefresh = async () => {
         setIsRefreshing(true);
         await fetchGaData();

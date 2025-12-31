@@ -227,7 +227,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                         setGaPropertyId(profileData.ga_property_id);
                     }
                     if (profileData.ga_widgets_config) {
+                        console.log('fetchProfile: Loaded widgets config:', profileData.ga_widgets_config);
                         setGaWidgetsConfig(profileData.ga_widgets_config);
+                    } else {
+                        console.log('fetchProfile: No widgets config found, using default');
                     }
                 }
             }
@@ -880,6 +883,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const saveGaWidgetsConfig = async (widgets: string[]) => {
         if (!user) return;
         try {
+            console.log('saveGaWidgetsConfig: Saving config:', widgets);
             const { error } = await supabase
                 .from('profiles')
                 .update({ ga_widgets_config: widgets })
