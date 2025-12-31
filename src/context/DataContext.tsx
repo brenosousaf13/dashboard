@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, parseISO } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, parseISO } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -67,13 +67,15 @@ interface DataContextType {
     googleConnected: boolean;
     gaPropertyId: string | null;
     gaProperties: GAProperty[];
-    gaData: GAData | null;
+    gaData: any | null;
     isGaLoading: boolean;
+    gaWidgetsConfig: string[];
+    saveGaWidgetsConfig: (widgets: string[]) => Promise<void>;
     connectGoogle: () => void;
     disconnectGoogle: () => Promise<void>;
     fetchGaProperties: () => Promise<void>;
     setGaProperty: (propertyId: string) => Promise<void>;
-    fetchGaData: (startDate?: Date, endDate?: Date) => Promise<void>;
+    fetchGaData: (widgetsToFetch?: string[], startDate?: Date, endDate?: Date) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -93,8 +95,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [googleConnected, setGoogleConnected] = useState(false);
     const [gaPropertyId, setGaPropertyId] = useState<string | null>(null);
     const [gaProperties, setGaProperties] = useState<GAProperty[]>([]);
-    const [gaData, setGaData] = useState<GAData | null>(null);
+    const [gaData, setGaData] = useState<any | null>(null);
     const [isGaLoading, setIsGaLoading] = useState(false);
+    const [gaWidgetsConfig, setGaWidgetsConfig] = useState<string[]>([
+        'total_users', 'sessions', 'conversion_rate', 'total_revenue',
+        'users_over_time', 'traffic_sources', 'top_pages', 'devices'
+    ]);
 
     const [storeName, setStoreName] = useState("Loja Exemplo");
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -183,15 +189,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             // console.log('fetchProfile: Data received:', data);
 
             if (data) {
-                if (data.store_name) setStoreName(data.store_name);
-                if (data.logo_url) setLogoUrl(data.logo_url);
+                const profileData = data as any;
+                if (profileData.store_name) setStoreName(profileData.store_name);
+                if (profileData.logo_url) setLogoUrl(profileData.logo_url);
 
-                if (data.woocommerce_url && data.woocommerce_consumer_key && data.woocommerce_consumer_secret) {
+                if (profileData.woocommerce_url && profileData.woocommerce_consumer_key && profileData.woocommerce_consumer_secret) {
                     console.log('fetchProfile: Found WooCommerce credentials');
                     const creds = {
-                        url: data.woocommerce_url,
-                        consumerKey: data.woocommerce_consumer_key,
-                        consumerSecret: data.woocommerce_consumer_secret
+                        url: profileData.woocommerce_url,
+                        consumerKey: profileData.woocommerce_consumer_key,
+                        consumerSecret: profileData.woocommerce_consumer_secret
                     };
                     setCredentials(creds);
                     setIsConnected(true);
@@ -202,22 +209,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     console.log('fetchProfile: No WooCommerce credentials found');
                 }
 
-                if (data.facebook_app_id && data.facebook_access_token) {
+                if (profileData.facebook_app_id && profileData.facebook_access_token) {
                     console.log('fetchProfile: Found Facebook credentials');
                     setFacebookCredentials({
-                        appId: data.facebook_app_id,
-                        accessToken: data.facebook_access_token
+                        appId: profileData.facebook_app_id,
+                        accessToken: profileData.facebook_access_token
                     });
                     setIsFacebookConnected(true);
                 } else {
                     console.log('fetchProfile: No Facebook credentials found');
                 }
 
-                if (data.google_access_token) {
+                if (profileData.google_access_token) {
                     console.log('fetchProfile: Found Google credentials');
                     setGoogleConnected(true);
-                    if (data.ga_property_id) {
-                        setGaPropertyId(data.ga_property_id);
+                    if (profileData.ga_property_id) {
+                        setGaPropertyId(profileData.ga_property_id);
+                    }
+                    if (profileData.ga_widgets_config) {
+                        setGaWidgetsConfig(profileData.ga_widgets_config);
                     }
                 }
             }
@@ -867,7 +877,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const fetchGaData = async (startDate?: Date, endDate?: Date) => {
+    const saveGaWidgetsConfig = async (widgets: string[]) => {
+        if (!user) return;
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ ga_widgets_config: widgets })
+                .eq('id', user.id);
+
+            if (error) throw error;
+            setGaWidgetsConfig(widgets);
+
+            // Refetch data with new widgets
+            if (gaPropertyId) {
+                fetchGaData(widgets);
+            }
+        } catch (error) {
+            console.error('Error saving widgets config:', error);
+            throw error;
+        }
+    };
+
+    const fetchGaData = async (widgetsToFetch = gaWidgetsConfig, startDate?: Date, endDate?: Date) => {
         if (!user || !googleConnected || !gaPropertyId) return;
 
         // Determine dates
@@ -897,6 +928,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             }
         }
 
+        if (!start || !end) return;
+
         setIsGaLoading(true);
         try {
             const response = await fetch('/api/analytics/data', {
@@ -905,39 +938,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 body: JSON.stringify({
                     userId: user.id,
                     propertyId: gaPropertyId,
-                    startDate: start.toISOString().split('T')[0], // YYYY-MM-DD
-                    endDate: end.toISOString().split('T')[0]
+                    startDate: format(start, 'yyyy-MM-dd'),
+                    endDate: format(end, 'yyyy-MM-dd'),
+                    widgets: Array.isArray(widgetsToFetch) ? widgetsToFetch.join(',') : widgetsToFetch
                 })
             });
 
             if (response.ok) {
-                const result = await response.json();
-                // Process batch results
-                // Report 0: Overview
-                // Report 1: Top Pages
-                // Report 2: Sources
-
-                const overviewRows = result.reports?.[0]?.rows || [];
-                const topPagesRows = result.reports?.[1]?.rows || [];
-                const sourcesRows = result.reports?.[2]?.rows || [];
-
-                setGaData({
-                    overview: overviewRows.map((row: any) => ({
-                        date: row.dimensionValues[0].value,
-                        activeUsers: parseInt(row.metricValues[0].value),
-                        sessions: parseInt(row.metricValues[1].value),
-                        bounceRate: parseFloat(row.metricValues[2].value),
-                        avgDuration: parseFloat(row.metricValues[3].value)
-                    })),
-                    topPages: topPagesRows.map((row: any) => ({
-                        path: row.dimensionValues[0].value,
-                        views: parseInt(row.metricValues[0].value)
-                    })),
-                    sources: sourcesRows.map((row: any) => ({
-                        source: row.dimensionValues[0].value,
-                        sessions: parseInt(row.metricValues[0].value)
-                    }))
-                });
+                const data = await response.json();
+                setGaData(data);
             } else {
                 console.error('Failed to fetch GA data');
             }
@@ -981,6 +990,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             gaProperties,
             gaData,
             isGaLoading,
+            gaWidgetsConfig,
+            saveGaWidgetsConfig,
             connectGoogle,
             disconnectGoogle,
             fetchGaProperties,

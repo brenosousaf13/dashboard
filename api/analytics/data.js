@@ -1,7 +1,110 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Mapping of widget IDs to GA4 API Request configurations
+const WIDGET_CONFIGS = {
+    // --- Metrics Cards ---
+    'active_users_realtime': {
+        // Realtime requires a different API method runRealtimeReport, 
+        // but for simplicity in batchRunReports we might use 'activeUsers' with recent time, 
+        // OR we handle it separately. For now, let's map to standard activeUsers.
+        metrics: [{ name: 'activeUsers' }],
+        dimensions: []
+    },
+    'total_users': { metrics: [{ name: 'totalUsers' }] },
+    'new_users': { metrics: [{ name: 'newUsers' }] },
+    'sessions': { metrics: [{ name: 'sessions' }] },
+    'engagement_rate': { metrics: [{ name: 'engagementRate' }] },
+    'avg_session_duration': { metrics: [{ name: 'averageSessionDuration' }] },
+    'screen_page_views': { metrics: [{ name: 'screenPageViews' }] },
+    'event_count': { metrics: [{ name: 'eventCount' }] },
+    'conversions': { metrics: [{ name: 'conversions' }] }, // purchases
+    'conversion_rate': { metrics: [{ name: 'sessionConversionRate' }] },
+    'total_revenue': { metrics: [{ name: 'totalRevenue' }] },
+    'avg_order_value': { metrics: [{ name: 'averagePurchaseRevenue' }] }, // Approximation
+
+    // --- Line/Area Charts (Over Time) ---
+    'users_over_time': {
+        metrics: [{ name: 'activeUsers' }],
+        dimensions: [{ name: 'date' }],
+        orderBys: [{ dimension: { dimensionName: 'date' } }]
+    },
+    'sessions_over_time': {
+        metrics: [{ name: 'sessions' }],
+        dimensions: [{ name: 'date' }],
+        orderBys: [{ dimension: { dimensionName: 'date' } }]
+    },
+    'revenue_over_time': {
+        metrics: [{ name: 'totalRevenue' }],
+        dimensions: [{ name: 'date' }],
+        orderBys: [{ dimension: { dimensionName: 'date' } }]
+    },
+    'conversions_over_time': {
+        metrics: [{ name: 'conversions' }],
+        dimensions: [{ name: 'date' }],
+        orderBys: [{ dimension: { dimensionName: 'date' } }]
+    },
+
+    // --- Pie/Donut Charts ---
+    'traffic_sources': {
+        metrics: [{ name: 'sessions' }],
+        dimensions: [{ name: 'sessionSource' }],
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 10
+    },
+    'devices': {
+        metrics: [{ name: 'activeUsers' }],
+        dimensions: [{ name: 'deviceCategory' }],
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }]
+    },
+    'browsers': {
+        metrics: [{ name: 'activeUsers' }],
+        dimensions: [{ name: 'browser' }],
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+        limit: 10
+    },
+    'countries': {
+        metrics: [{ name: 'activeUsers' }],
+        dimensions: [{ name: 'country' }],
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+        limit: 10
+    },
+
+    // --- Tables/Lists ---
+    'top_pages': {
+        metrics: [{ name: 'screenPageViews' }],
+        dimensions: [{ name: 'pagePath' }],
+        orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
+        limit: 10
+    },
+    'top_landing_pages': {
+        metrics: [{ name: 'sessions' }],
+        dimensions: [{ name: 'landingPage' }],
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 10
+    },
+    // 'top_exit_pages': Not directly available in standard dimensions easily without exploration
+    'top_products': { // Requires ecommerce
+        metrics: [{ name: 'itemRevenue' }, { name: 'itemsPurchased' }],
+        dimensions: [{ name: 'itemName' }],
+        orderBys: [{ metric: { metricName: 'itemRevenue' }, desc: true }],
+        limit: 10
+    },
+    'top_campaigns': {
+        metrics: [{ name: 'sessions' }],
+        dimensions: [{ name: 'sessionCampaignName' }],
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 10
+    },
+    'top_cities': {
+        metrics: [{ name: 'activeUsers' }],
+        dimensions: [{ name: 'city' }],
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+        limit: 10
+    }
+};
+
 export default async function handler(req, res) {
-    const { userId, propertyId, startDate, endDate } = req.body; // Using POST for complex body
+    const { userId, propertyId, startDate, endDate, widgets } = req.body;
 
     if (!userId || !propertyId || !startDate || !endDate) {
         return res.status(400).json({ error: 'Missing required parameters' });
@@ -65,6 +168,26 @@ export default async function handler(req, res) {
             }).eq('id', userId);
         }
 
+        // Determine which reports to run
+        const requestedWidgets = widgets ? widgets.split(',') : ['total_users', 'sessions', 'users_over_time', 'traffic_sources', 'top_pages'];
+        const requests = [];
+        const widgetIdMap = []; // To map response index back to widget ID
+
+        requestedWidgets.forEach(widgetId => {
+            const config = WIDGET_CONFIGS[widgetId];
+            if (config) {
+                requests.push({
+                    dateRanges: [{ startDate, endDate }],
+                    ...config
+                });
+                widgetIdMap.push(widgetId);
+            }
+        });
+
+        if (requests.length === 0) {
+            return res.status(200).json({});
+        }
+
         // Batch Run Reports
         const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/${propertyId}:batchRunReports`, {
             method: 'POST',
@@ -72,38 +195,7 @@ export default async function handler(req, res) {
                 Authorization: `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                requests: [
-                    // Report 0: Overview & Line Chart (Daily)
-                    {
-                        dateRanges: [{ startDate, endDate }],
-                        dimensions: [{ name: 'date' }],
-                        metrics: [
-                            { name: 'activeUsers' },
-                            { name: 'sessions' },
-                            { name: 'bounceRate' },
-                            { name: 'averageSessionDuration' }
-                        ],
-                        orderBys: [{ dimension: { dimensionName: 'date' } }]
-                    },
-                    // Report 1: Top Pages
-                    {
-                        dateRanges: [{ startDate, endDate }],
-                        dimensions: [{ name: 'pagePath' }],
-                        metrics: [{ name: 'screenPageViews' }],
-                        orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
-                        limit: 10
-                    },
-                    // Report 2: Traffic Sources
-                    {
-                        dateRanges: [{ startDate, endDate }],
-                        dimensions: [{ name: 'sessionSource' }],
-                        metrics: [{ name: 'sessions' }],
-                        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
-                        limit: 10
-                    }
-                ]
-            })
+            body: JSON.stringify({ requests })
         });
 
         if (!response.ok) {
@@ -112,7 +204,17 @@ export default async function handler(req, res) {
         }
 
         const data = await response.json();
-        res.status(200).json(data);
+
+        // Map responses back to widget IDs
+        const result = {};
+        if (data.reports) {
+            data.reports.forEach((report, index) => {
+                const widgetId = widgetIdMap[index];
+                result[widgetId] = report;
+            });
+        }
+
+        res.status(200).json(result);
 
     } catch (error) {
         console.error('Analytics Data API Error:', error);
