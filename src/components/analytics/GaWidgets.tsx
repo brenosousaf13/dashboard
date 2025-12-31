@@ -127,12 +127,12 @@ export function GaWidgetRenderer({ id, data }: { id: WidgetId, data: any }) {
             value: parseFloat(row.metricValues[0].value)
         })) || [];
 
-        const config = {
+        const config = ({
             'users_over_time': { title: 'Usuários ao Longo do Tempo', color: '#0088FE' },
             'sessions_over_time': { title: 'Sessões ao Longo do Tempo', color: '#00C49F' },
             'revenue_over_time': { title: 'Receita ao Longo do Tempo', color: '#82ca9d' },
             'conversions_over_time': { title: 'Conversões ao Longo do Tempo', color: '#FF8042' },
-        }[id]!;
+        } as Record<string, { title: string, color: string }>)[id]!;
 
         return (
             <ChartCard title={config.title}>
@@ -168,12 +168,12 @@ export function GaWidgetRenderer({ id, data }: { id: WidgetId, data: any }) {
             value: parseInt(row.metricValues[0].value)
         })) || [];
 
-        const title = {
+        const title = ({
             'traffic_sources': 'Fontes de Tráfego',
             'devices': 'Dispositivos',
             'browsers': 'Navegadores',
             'countries': 'Países'
-        }[id]!;
+        } as Record<string, string>)[id]!;
 
         return (
             <PieChartCard title={title}>
@@ -208,13 +208,13 @@ export function GaWidgetRenderer({ id, data }: { id: WidgetId, data: any }) {
             value2: row.metricValues[1]?.value // For products (revenue + quantity)
         })) || [];
 
-        const config = {
+        const config = ({
             'top_pages': { title: 'Páginas Mais Visitadas', col1: 'Página', col2: 'Visualizações' },
             'top_landing_pages': { title: 'Páginas de Entrada', col1: 'Página', col2: 'Sessões' },
             'top_products': { title: 'Produtos Mais Vendidos', col1: 'Produto', col2: 'Receita' },
             'top_campaigns': { title: 'Top Campanhas', col1: 'Campanha', col2: 'Sessões' },
             'top_cities': { title: 'Top Cidades', col1: 'Cidade', col2: 'Usuários' },
-        }[id]!;
+        } as Record<string, { title: string, col1: string, col2: string }>)[id]!;
 
         return (
             <TableCard title={config.title}>
