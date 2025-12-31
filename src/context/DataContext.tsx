@@ -948,7 +948,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 const data = await response.json();
                 setGaData(data);
             } else {
-                console.error('Failed to fetch GA data');
+                const errorData = await response.json();
+                console.error('Failed to fetch GA data:', errorData);
             }
         } catch (error) {
             console.error('Error fetching GA data:', error);
