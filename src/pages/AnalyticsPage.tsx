@@ -140,9 +140,27 @@ export function AnalyticsPage() {
             </div>
 
             {isLoading ? (
-                <div className="flex items-center justify-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <span className="ml-2">Carregando dados da loja...</span>
+                <div className="space-y-4">
+                    {/* Overview Cards Skeleton - 4 cards */}
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="h-[120px] rounded-xl bg-muted/50 animate-pulse" />
+                        ))}
+                    </div>
+                    {/* Charts Row Skeleton */}
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                        <div className="col-span-4 h-[350px] rounded-xl bg-muted/50 animate-pulse" />
+                        <div className="col-span-3 h-[350px] rounded-xl bg-muted/50 animate-pulse" />
+                    </div>
+                    {/* Product Performance Skeleton */}
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                        <div className="col-span-7 h-[400px] rounded-xl bg-muted/50 animate-pulse" />
+                    </div>
+                    {/* Bottom Row Skeleton */}
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                        <div className="col-span-4 h-[350px] rounded-xl bg-muted/50 animate-pulse" />
+                        <div className="col-span-3 h-[350px] rounded-xl bg-muted/50 animate-pulse" />
+                    </div>
                 </div>
             ) : (
                 <>
