@@ -35,6 +35,14 @@ interface GAData {
     sources: any[];
 }
 
+export interface ChatMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: Date;
+    model?: string;
+}
+
 interface DataContextType {
     credentials: WooCommerceCredentials | null;
     facebookCredentials: FacebookCredentials | null;
@@ -77,6 +85,13 @@ interface DataContextType {
     setGaProperty: (propertyId: string) => Promise<void>;
     fetchGaData: (widgetsToFetch?: string[], startDate?: Date, endDate?: Date) => Promise<void>;
     isLoadingProfile: boolean;
+
+    // Chat AI
+    chatMessages: ChatMessage[];
+    selectedAiModel: string;
+    addChatMessage: (message: ChatMessage) => void;
+    clearChatMessages: () => void;
+    setAiModel: (model: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -106,6 +121,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     const [storeName, setStoreName] = useState("Loja Exemplo");
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+    // Chat AI State
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [selectedAiModel, setSelectedAiModel] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('selectedAiModel') || 'gpt-4.1-nano';
+        }
+        return 'gpt-4.1-nano';
+    });
+
+    const addChatMessage = (message: ChatMessage) => {
+        setChatMessages(prev => [...prev, message]);
+    };
+
+    const clearChatMessages = () => {
+        setChatMessages([]);
+    };
+
+    const setAiModel = (model: string) => {
+        setSelectedAiModel(model);
+        localStorage.setItem('selectedAiModel', model);
+    };
 
     // Global Date Filter State
     // Global Date Filter State - Initialize from localStorage if available
@@ -151,6 +188,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem('dateFilter');
             localStorage.removeItem('customStartDate');
             localStorage.removeItem('customEndDate');
+            // Clear chat on logout
+            setChatMessages([]);
         }
     }, [user?.id]);
 
@@ -1007,7 +1046,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             fetchGaProperties,
             setGaProperty,
             fetchGaData,
-            isLoadingProfile
+            isLoadingProfile,
+            chatMessages,
+            selectedAiModel,
+            addChatMessage,
+            clearChatMessages,
+            setAiModel
         }}>
             {children}
         </DataContext.Provider>

@@ -9,7 +9,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { messages, userId } = req.body;
+    const { messages, userId, model = 'gpt-4.1-nano' } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: 'Messages array is required' });
@@ -53,7 +53,7 @@ Se o usuário perguntar algo fora do escopo de e-commerce, responda educadamente
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: model,
             messages: [
                 { role: "system", content: systemPrompt },
                 ...messages

@@ -1,22 +1,40 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useData, ChatMessage as ChatMessageType } from "../context/DataContext";
 import { ChatMessage } from "../components/chat/ChatMessage";
 import { ChatInput } from "../components/chat/ChatInput";
 import { SuggestionCards } from "../components/chat/SuggestionCards";
-import { Bot, Sparkles, Trash2 } from "lucide-react";
+import { Bot, Sparkles, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-interface Message {
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
-    timestamp: Date;
-}
+const AI_MODELS = [
+    { value: "gpt-4.1-nano", label: "GPT-4.1 Nano (Econômico)" },
+    { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
+    { value: "gpt-5-mini", label: "GPT-5 Mini (Balanceado)" },
+];
 
 export function InsightsPage() {
     const { user } = useAuth();
-    const [messages, setMessages] = useState<Message[]>([]);
+    const {
+        chatMessages,
+        selectedAiModel,
+        addChatMessage,
+        clearChatMessages,
+        setAiModel
+    } = useData();
     const [isLoading, setIsLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -28,24 +46,24 @@ export function InsightsPage() {
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages]);
+    }, [chatMessages]);
 
     const handleSendMessage = async (content: string) => {
         if (!content.trim()) return;
 
-        const newUserMessage: Message = {
+        const newUserMessage: ChatMessageType = {
             id: Date.now().toString(),
             role: 'user',
             content,
             timestamp: new Date()
         };
 
-        setMessages(prev => [...prev, newUserMessage]);
+        addChatMessage(newUserMessage);
         setIsLoading(true);
 
         try {
             // Prepare messages for API (remove id and timestamp)
-            const apiMessages = [...messages, newUserMessage].map(m => ({
+            const apiMessages = [...chatMessages, newUserMessage].map(m => ({
                 role: m.role,
                 content: m.content
             }));
@@ -55,7 +73,8 @@ export function InsightsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: apiMessages,
-                    userId: user?.id
+                    userId: user?.id,
+                    model: selectedAiModel
                 })
             });
 
@@ -65,30 +84,32 @@ export function InsightsPage() {
 
             const data = await response.json();
 
-            const newAssistantMessage: Message = {
+            const newAssistantMessage: ChatMessageType = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
                 content: data.message,
-                timestamp: new Date()
+                timestamp: new Date(),
+                model: selectedAiModel
             };
 
-            setMessages(prev => [...prev, newAssistantMessage]);
+            addChatMessage(newAssistantMessage);
         } catch (error) {
             console.error('Error sending message:', error);
-            const errorMessage: Message = {
+            const errorMessage: ChatMessageType = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
                 content: "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.",
-                timestamp: new Date()
+                timestamp: new Date(),
+                model: selectedAiModel
             };
-            setMessages(prev => [...prev, errorMessage]);
+            addChatMessage(errorMessage);
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleClearChat = () => {
-        setMessages([]);
+        clearChatMessages();
     };
 
     return (
@@ -109,18 +130,56 @@ export function InsightsPage() {
                         </p>
                     </div>
                 </div>
-                {messages.length > 0 && (
-                    <Button variant="ghost" size="sm" onClick={handleClearChat} className="text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Nova Conversa
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                    <Select value={selectedAiModel} onValueChange={setAiModel}>
+                        <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Selecione o modelo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {AI_MODELS.map((model) => (
+                                <SelectItem key={model.value} value={model.value}>
+                                    {model.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {chatMessages.length > 0 ? (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Nova Conversa
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Iniciar nova conversa?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        O histórico atual será perdido. Essa ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleClearChat}>
+                                        Nova Conversa
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    ) : (
+                        <Button variant="outline" size="sm" disabled>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Nova Conversa
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Chat Area */}
             <ScrollArea className="flex-1 p-4">
                 <div className="max-w-4xl mx-auto space-y-4 pb-4">
-                    {messages.length === 0 ? (
+                    {chatMessages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-8">
                             <div className="text-center space-y-2">
                                 <h2 className="text-2xl font-bold">Como posso ajudar sua loja hoje?</h2>
@@ -132,8 +191,13 @@ export function InsightsPage() {
                         </div>
                     ) : (
                         <>
-                            {messages.map((msg) => (
-                                <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
+                            {chatMessages.map((msg) => (
+                                <ChatMessage
+                                    key={msg.id}
+                                    role={msg.role}
+                                    content={msg.content}
+                                    model={msg.model}
+                                />
                             ))}
                             {isLoading && (
                                 <div className="flex items-center gap-2 text-muted-foreground p-4">
@@ -154,3 +218,4 @@ export function InsightsPage() {
         </div>
     );
 }
+
