@@ -6,11 +6,11 @@ import { Button } from "./ui/button"
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { useData } from "../context/DataContext"
+import { useSidebar } from "../context/SidebarContext"
 import { StoreSettingsModal } from "./settings/StoreSettingsModal"
 
 export function Sidebar() {
-    const [isCollapsed, setIsCollapsed] = useState(false)
-    const [isMobileOpen, setIsMobileOpen] = useState(false)
+    const { isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen } = useSidebar()
     const [isStoreModalOpen, setIsStoreModalOpen] = useState(false)
     const location = useLocation()
     const { signOut } = useAuth()
