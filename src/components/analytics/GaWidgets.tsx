@@ -1,64 +1,67 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from "recharts";
-import { Users, Activity, Clock, MousePointerClick, ShoppingCart, DollarSign, Globe, Monitor, Layout, MapPin, Tag } from "lucide-react";
+import { Users, Activity, Clock, MousePointerClick, ShoppingCart, DollarSign, Globe, Monitor, Layout, MapPin, Tag, TrendingUp, BarChart3 } from "lucide-react";
 import { WidgetId } from "./WidgetSelector";
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#a4de6c', '#d0ed57'];
+// Violet color palette
+const COLORS = ['#8B5CF6', '#A78BFA', '#C4B5FD', '#7C3AED', '#6D28D9', '#5B21B6', '#4C1D95', '#DDD6FE'];
 
 // --- Helper Components ---
 
 function MetricCard({ title, value, subtext, icon: Icon }: { title: string, value: string, subtext?: string, icon?: any }) {
     return (
-        <Card className="h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
-                {subtext && <p className="text-xs text-muted-foreground">{subtext}</p>}
-            </CardContent>
-        </Card>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 h-full">
+            <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-gray-500">{title}</span>
+                {Icon && (
+                    <div className="p-2 bg-violet-50 rounded-lg">
+                        <Icon className="h-4 w-4 text-violet-500" />
+                    </div>
+                )}
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{value}</div>
+            {subtext && <p className="text-xs text-gray-400 mt-1">{subtext}</p>}
+        </div>
     );
 }
 
 function ChartCard({ title, children }: { title: string, children: React.ReactNode }) {
     return (
-        <Card className="col-span-1 md:col-span-2 lg:col-span-4 h-[400px] flex flex-col">
-            <CardHeader>
-                <CardTitle>{title}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 h-[400px] flex flex-col">
+            <div className="px-6 pt-5 pb-2">
+                <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+            </div>
+            <div className="flex-1 px-4 pb-4 min-h-0">
                 {children}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }
 
 function PieChartCard({ title, children }: { title: string, children: React.ReactNode }) {
     return (
-        <Card className="col-span-1 md:col-span-2 lg:col-span-3 h-[400px] flex flex-col">
-            <CardHeader>
-                <CardTitle>{title}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 h-[400px] flex flex-col">
+            <div className="px-6 pt-5 pb-2">
+                <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+            </div>
+            <div className="flex-1 px-4 pb-4 min-h-0">
                 {children}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }
 
 function TableCard({ title, children }: { title: string, children: React.ReactNode }) {
     return (
-        <Card className="col-span-1 md:col-span-2 lg:col-span-3 h-[400px] flex flex-col">
-            <CardHeader>
-                <CardTitle>{title}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-auto">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 h-[400px] flex flex-col">
+            <div className="px-6 pt-5 pb-2">
+                <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+            </div>
+            <div className="flex-1 px-4 pb-4 overflow-auto">
                 {children}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }
 
@@ -66,9 +69,12 @@ function TableCard({ title, children }: { title: string, children: React.ReactNo
 
 export function GaWidgetRenderer({ id, data }: { id: WidgetId, data: any }) {
     if (!data) return (
-        <Card className="h-full flex items-center justify-center p-6">
-            <div className="text-muted-foreground text-sm">Carregando {id}...</div>
-        </Card>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 h-full flex items-center justify-center p-6">
+            <div className="text-gray-400 text-sm flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></div>
+                Carregando...
+            </div>
+        </div>
     );
 
     // Check for empty data
@@ -89,7 +95,7 @@ export function GaWidgetRenderer({ id, data }: { id: WidgetId, data: any }) {
     }
     if (id === 'engagement_rate') {
         const val = parseFloat(data.rows?.[0]?.metricValues?.[0]?.value || "0");
-        return <MetricCard title="Taxa de Engajamento" value={`${(val * 100).toFixed(1)}%`} icon={Activity} />;
+        return <MetricCard title="Taxa de Engajamento" value={`${(val * 100).toFixed(1)}%`} icon={TrendingUp} />;
     }
     if (id === 'avg_session_duration') {
         const val = parseFloat(data.rows?.[0]?.metricValues?.[0]?.value || "0");
@@ -109,7 +115,7 @@ export function GaWidgetRenderer({ id, data }: { id: WidgetId, data: any }) {
     }
     if (id === 'conversion_rate') {
         const val = parseFloat(data.rows?.[0]?.metricValues?.[0]?.value || "0");
-        return <MetricCard title="Taxa de Conversão" value={`${(val * 100).toFixed(1)}%`} icon={Activity} />;
+        return <MetricCard title="Taxa de Conversão" value={`${(val * 100).toFixed(1)}%`} icon={TrendingUp} />;
     }
     if (id === 'total_revenue') {
         const val = parseFloat(data.rows?.[0]?.metricValues?.[0]?.value || "0");
@@ -128,10 +134,10 @@ export function GaWidgetRenderer({ id, data }: { id: WidgetId, data: any }) {
         })) || [];
 
         const config = ({
-            'users_over_time': { title: 'Usuários ao Longo do Tempo', color: '#0088FE' },
-            'sessions_over_time': { title: 'Sessões ao Longo do Tempo', color: '#00C49F' },
-            'revenue_over_time': { title: 'Receita ao Longo do Tempo', color: '#82ca9d' },
-            'conversions_over_time': { title: 'Conversões ao Longo do Tempo', color: '#FF8042' },
+            'users_over_time': { title: 'Usuários ao Longo do Tempo', color: '#8B5CF6' },
+            'sessions_over_time': { title: 'Sessões ao Longo do Tempo', color: '#A78BFA' },
+            'revenue_over_time': { title: 'Receita ao Longo do Tempo', color: '#7C3AED' },
+            'conversions_over_time': { title: 'Conversões ao Longo do Tempo', color: '#6D28D9' },
         } as Record<string, { title: string, color: string }>)[id]!;
 
         return (
@@ -140,21 +146,23 @@ export function GaWidgetRenderer({ id, data }: { id: WidgetId, data: any }) {
                     <AreaChart data={chartData}>
                         <defs>
                             <linearGradient id={`color${id}`} x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={config.color} stopOpacity={0.8} />
+                                <stop offset="5%" stopColor={config.color} stopOpacity={0.3} />
                                 <stop offset="95%" stopColor={config.color} stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                         <XAxis
                             dataKey="date"
                             tickFormatter={(val) => val && val.length === 8 ? `${val.substring(6, 8)}/${val.substring(4, 6)}` : val}
                             tickLine={false} axisLine={false} tickMargin={8}
+                            tick={{ fill: '#9CA3AF', fontSize: 12 }}
                         />
-                        <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+                        <YAxis tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
                         <Tooltip
                             labelFormatter={(val) => val && val.length === 8 ? `${val.substring(6, 8)}/${val.substring(4, 6)}/${val.substring(0, 4)}` : val}
+                            contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         />
-                        <Area type="monotone" dataKey="value" stroke={config.color} fillOpacity={1} fill={`url(#color${id})`} />
+                        <Area type="monotone" dataKey="value" stroke={config.color} strokeWidth={2} fillOpacity={1} fill={`url(#color${id})`} />
                     </AreaChart>
                 </ResponsiveContainer>
             </ChartCard>
@@ -182,18 +190,23 @@ export function GaWidgetRenderer({ id, data }: { id: WidgetId, data: any }) {
                         <Pie
                             data={pieData}
                             cx="50%"
-                            cy="50%"
+                            cy="45%"
                             innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
+                            outerRadius={90}
+                            paddingAngle={3}
                             dataKey="value"
                         >
                             {pieData.map((entry: any, index: number) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
-                        <Tooltip />
-                        <Legend />
+                        <Tooltip
+                            contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Legend
+                            wrapperStyle={{ fontSize: '12px' }}
+                            iconType="circle"
+                        />
                     </PieChart>
                 </ResponsiveContainer>
             </PieChartCard>
@@ -220,25 +233,27 @@ export function GaWidgetRenderer({ id, data }: { id: WidgetId, data: any }) {
             <TableCard title={config.title}>
                 <Table>
                     <TableHeader>
-                        <TableRow>
-                            <TableHead>{config.col1}</TableHead>
-                            <TableHead className="text-right">{config.col2}</TableHead>
+                        <TableRow className="border-b border-gray-100 hover:bg-transparent">
+                            <TableHead className="text-gray-500 font-medium">{config.col1}</TableHead>
+                            <TableHead className="text-right text-gray-500 font-medium">{config.col2}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {tableData.length > 0 ? tableData.map((row: any, i: number) => (
-                            <TableRow key={i}>
-                                <TableCell className="font-medium truncate max-w-[200px]" title={row.name}>{row.name}</TableCell>
+                            <TableRow key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
+                                <TableCell className="font-medium text-gray-900 truncate max-w-[200px]" title={row.name}>{row.name}</TableCell>
                                 <TableCell className="text-right">
-                                    {id === 'top_products'
-                                        ? `R$ ${parseFloat(row.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                                        : parseInt(row.value).toLocaleString()
-                                    }
+                                    <span className="font-semibold text-violet-600">
+                                        {id === 'top_products'
+                                            ? `R$ ${parseFloat(row.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                            : parseInt(row.value).toLocaleString()
+                                        }
+                                    </span>
                                 </TableCell>
                             </TableRow>
                         )) : (
                             <TableRow>
-                                <TableCell colSpan={2} className="text-center text-muted-foreground">Sem dados</TableCell>
+                                <TableCell colSpan={2} className="text-center text-gray-400">Sem dados</TableCell>
                             </TableRow>
                         )}
                     </TableBody>

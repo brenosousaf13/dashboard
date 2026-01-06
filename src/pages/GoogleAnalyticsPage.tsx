@@ -95,17 +95,17 @@ export function GoogleAnalyticsPage() {
     }
 
     return (
-        <div className="p-8 pt-6 space-y-6">
+        <div className="p-6 md:p-8 space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Google Analytics 4</h2>
-                    <p className="text-muted-foreground">
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Google Analytics 4</h1>
+                    <p className="text-gray-500 mt-1">
                         Acompanhe o desempenho do seu site em tempo real.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Select value={gaPropertyId || ""} onValueChange={setGaProperty}>
-                        <SelectTrigger className="w-[250px]">
+                        <SelectTrigger className="w-[250px] border-gray-200">
                             <SelectValue placeholder="Selecione uma propriedade" />
                         </SelectTrigger>
                         <SelectContent>
@@ -122,11 +122,11 @@ export function GoogleAnalyticsPage() {
                         onSave={handleSaveWidgets}
                     />
 
-                    <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing || isGaLoading}>
+                    <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing || isGaLoading} className="border-gray-200 hover:bg-violet-50 hover:border-violet-200">
                         <RefreshCw className={`h-4 w-4 ${isRefreshing || isGaLoading ? 'animate-spin' : ''}`} />
                     </Button>
 
-                    <Button variant="destructive" size="sm" onClick={disconnectGoogle}>
+                    <Button variant="outline" size="sm" onClick={disconnectGoogle} className="border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600">
                         <LogOut className="w-4 h-4 mr-2" />
                         Desconectar
                     </Button>
