@@ -93,10 +93,14 @@ export function AnalyticsPage() {
     } : undefined
 
     return (
-        <div className="flex-1 space-y-4 p-8 pt-6">
-            <div className="flex items-center justify-between space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight">Análises</h2>
-                <div className="flex items-center space-x-2">
+        <div className="flex-1 space-y-6 p-6 md:p-8">
+            {/* Page Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+                    <p className="text-gray-500 mt-1">Visão geral do seu negócio</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
                     <Select value={localDateFilter} onValueChange={setLocalDateFilter}>
                         <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Período" />
@@ -127,12 +131,16 @@ export function AnalyticsPage() {
                         </div>
                     )}
 
-                    <Button onClick={() => handleApplyFilter(false)} disabled={isLoading}>
+                    <Button
+                        onClick={() => handleApplyFilter(false)}
+                        disabled={isLoading}
+                        className="bg-violet-600 hover:bg-violet-700 text-white"
+                    >
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                         Aplicar
                     </Button>
 
-                    <Button variant="default" className="bg-black hover:bg-gray-800">
+                    <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
                         <Download className="mr-2 h-4 w-4" />
                         Exportar
                     </Button>
@@ -140,43 +148,43 @@ export function AnalyticsPage() {
             </div>
 
             {isLoading ? (
-                <div className="space-y-4">
-                    {/* Overview Cards Skeleton - 4 cards */}
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-6 animate-fade-in">
+                    {/* Overview Cards Skeleton */}
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-[120px] rounded-xl bg-muted/50 animate-pulse" />
+                            <div key={i} className="h-[140px] rounded-2xl bg-white border border-gray-100 animate-pulse" />
                         ))}
                     </div>
                     {/* Charts Row Skeleton */}
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <div className="col-span-4 h-[350px] rounded-xl bg-muted/50 animate-pulse" />
-                        <div className="col-span-3 h-[350px] rounded-xl bg-muted/50 animate-pulse" />
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+                        <div className="col-span-4 h-[380px] rounded-2xl bg-white border border-gray-100 animate-pulse" />
+                        <div className="col-span-3 h-[380px] rounded-2xl bg-white border border-gray-100 animate-pulse" />
                     </div>
                     {/* Product Performance Skeleton */}
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <div className="col-span-7 h-[400px] rounded-xl bg-muted/50 animate-pulse" />
+                    <div className="grid gap-6">
+                        <div className="h-[400px] rounded-2xl bg-white border border-gray-100 animate-pulse" />
                     </div>
                     {/* Bottom Row Skeleton */}
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <div className="col-span-4 h-[350px] rounded-xl bg-muted/50 animate-pulse" />
-                        <div className="col-span-3 h-[350px] rounded-xl bg-muted/50 animate-pulse" />
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+                        <div className="col-span-4 h-[350px] rounded-2xl bg-white border border-gray-100 animate-pulse" />
+                        <div className="col-span-3 h-[350px] rounded-2xl bg-white border border-gray-100 animate-pulse" />
                     </div>
                 </div>
             ) : (
-                <>
+                <div className="space-y-6 animate-fade-in">
                     <OverviewCards data={overviewData} />
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <SalesChart className="col-span-4" sales={data?.sales} />
-                        <SalesHeatmap className="col-span-3" orders={data?.orders} />
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+                        <SalesChart className="col-span-full lg:col-span-4" sales={data?.sales} />
+                        <SalesHeatmap className="col-span-full lg:col-span-3" orders={data?.orders} />
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <ProductPerformance className="col-span-7" products={data?.products} />
+                    <div className="grid gap-6">
+                        <ProductPerformance className="col-span-full" products={data?.products} />
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <RetentionMetrics className="col-span-4" customers={data?.customers} />
-                        <BrazilMap className="col-span-3" orders={data?.orders} />
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+                        <RetentionMetrics className="col-span-full lg:col-span-4" customers={data?.customers} />
+                        <BrazilMap className="col-span-full lg:col-span-3" orders={data?.orders} />
                     </div>
-                </>
+                </div>
             )}
         </div>
     )

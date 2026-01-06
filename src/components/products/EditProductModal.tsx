@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -155,6 +155,9 @@ export function EditProductModal({ product, isOpen, onClose, onSave, categories 
                 <div className="flex items-center justify-between px-6 py-4 border-b">
                     <div>
                         <DialogTitle className="text-xl">Editar produto</DialogTitle>
+                        <DialogDescription className="sr-only">
+                            Formulário para editar detalhes do produto {product.name}
+                        </DialogDescription>
                         <p className="text-sm text-muted-foreground mt-1">{product.name}</p>
                     </div>
                     <div className="flex gap-2">

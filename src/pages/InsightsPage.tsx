@@ -113,26 +113,26 @@ export function InsightsPage() {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] bg-background">
+        <div className="flex flex-col h-[calc(100vh-70px)] bg-gray-50">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-card">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-full">
-                        <Bot className="h-6 w-6 text-primary" />
+                    <div className="p-2.5 bg-violet-100 rounded-xl">
+                        <Bot className="h-6 w-6 text-violet-600" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold flex items-center gap-2">
+                        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                             Noord AI
-                            <Sparkles className="h-4 w-4 text-yellow-500" />
+                            <Sparkles className="h-4 w-4 text-amber-500" />
                         </h1>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-gray-500">
                             Seu especialista em e-commerce
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <Select value={selectedAiModel} onValueChange={setAiModel}>
-                        <SelectTrigger className="w-[200px]">
+                        <SelectTrigger className="w-[200px] border-gray-200">
                             <SelectValue placeholder="Selecione o modelo" />
                         </SelectTrigger>
                         <SelectContent>
@@ -147,7 +147,7 @@ export function InsightsPage() {
                     {chatMessages.length > 0 ? (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" className="border-gray-200 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200">
                                     <Plus className="h-4 w-4 mr-2" />
                                     Nova Conversa
                                 </Button>
@@ -161,14 +161,14 @@ export function InsightsPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleClearChat}>
+                                    <AlertDialogAction onClick={handleClearChat} className="bg-violet-600 hover:bg-violet-700">
                                         Nova Conversa
                                     </AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
                     ) : (
-                        <Button variant="outline" size="sm" disabled>
+                        <Button variant="outline" size="sm" className="border-gray-200" disabled>
                             <Plus className="h-4 w-4 mr-2" />
                             Nova Conversa
                         </Button>
@@ -182,8 +182,8 @@ export function InsightsPage() {
                     {chatMessages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-8">
                             <div className="text-center space-y-2">
-                                <h2 className="text-2xl font-bold">Como posso ajudar sua loja hoje?</h2>
-                                <p className="text-muted-foreground">
+                                <h2 className="text-2xl font-bold text-gray-900">Como posso ajudar sua loja hoje?</h2>
+                                <p className="text-gray-500">
                                     Escolha uma sugestão abaixo ou digite sua pergunta.
                                 </p>
                             </div>
@@ -200,8 +200,8 @@ export function InsightsPage() {
                                 />
                             ))}
                             {isLoading && (
-                                <div className="flex items-center gap-2 text-muted-foreground p-4">
-                                    <Bot className="h-4 w-4 animate-bounce" />
+                                <div className="flex items-center gap-2 text-gray-500 p-4">
+                                    <Bot className="h-4 w-4 animate-bounce text-violet-600" />
                                     <span className="text-sm">Digitando...</span>
                                 </div>
                             )}

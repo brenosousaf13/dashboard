@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react"
 import { useData } from "@/context/DataContext"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Eye, Download, RefreshCw, CreditCard, TrendingUp, Clock, CheckCircle2, Search, Loader2 } from "lucide-react"
-import { format, parseISO, subDays, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay } from "date-fns"
+import { Eye, Download, CreditCard, TrendingUp, Clock, CheckCircle2, Search, Loader2, ShoppingBag, DollarSign } from "lucide-react"
+import { format, parseISO, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { StatCard } from "@/components/StatCard"
+import { WidgetCard } from "@/components/WidgetCard"
 
 export function OrdersPage() {
     const {
@@ -151,65 +152,53 @@ export function OrdersPage() {
     }
 
     return (
-        <div className="p-8 space-y-8">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold tracking-tight">Pedidos</h1>
-                <div className="flex gap-2">
-                    <Button variant="default" className="bg-black hover:bg-gray-800">
-                        <Download className="mr-2 h-4 w-4" />
-                        Exportar
-                    </Button>
+        <div className="p-6 md:p-8 space-y-6">
+            {/* Page Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Pedidos</h1>
+                    <p className="text-gray-500 mt-1">Gerencie todos os pedidos da sua loja</p>
                 </div>
+                <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
+                    <Download className="mr-2 h-4 w-4" />
+                    Exportar
+                </Button>
             </div>
 
             {/* Metrics Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total de Pedidos</CardTitle>
-                        <span className="text-muted-foreground">$</span>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{totalOrders}</div>
-                        <p className="text-xs text-muted-foreground">No período selecionado</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pedidos Pendentes</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{pendingOrdersCount}</div>
-                        <p className="text-xs text-muted-foreground">Aguardando pagamento/processamento</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Valor Total (Faturado)</CardTitle>
-                        <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
-                        <p className="text-xs text-muted-foreground">Receita bruta</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Tempo Médio de Processamento</CardTitle>
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{avgProcessingTime}</div>
-                        <p className="text-xs text-muted-foreground">Da confirmação ao envio</p>
-                    </CardContent>
-                </Card>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard
+                    title="Total de Pedidos"
+                    value={totalOrders.toString()}
+                    subtitle="No período selecionado"
+                    highlighted={true}
+                    icon={<ShoppingBag className="h-5 w-5 text-violet-600" />}
+                />
+                <StatCard
+                    title="Pedidos Pendentes"
+                    value={pendingOrdersCount.toString()}
+                    subtitle="Aguardando processamento"
+                    icon={<TrendingUp className="h-5 w-5 text-gray-500" />}
+                />
+                <StatCard
+                    title="Valor Total"
+                    value={formatCurrency(totalRevenue)}
+                    subtitle="Receita bruta"
+                    icon={<DollarSign className="h-5 w-5 text-gray-500" />}
+                />
+                <StatCard
+                    title="Tempo Médio"
+                    value={avgProcessingTime}
+                    subtitle="Da confirmação ao envio"
+                    icon={<Clock className="h-5 w-5 text-gray-500" />}
+                />
             </div>
 
             {/* Filters and Table */}
-            <Card>
-                <div className="p-4 flex flex-col md:flex-row gap-4 border-b">
+            <WidgetCard noPadding>
+                <div className="p-4 flex flex-col md:flex-row gap-3 border-b border-gray-100">
                     <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
                             placeholder="Buscar por nº ou cliente..."
                             value={searchTerm}
@@ -217,18 +206,18 @@ export function OrdersPage() {
                                 setSearchTerm(e.target.value)
                                 setCurrentPage(1)
                             }}
-                            className="w-full"
+                            className="w-full pl-9"
                         />
                     </div>
                     <Select value={statusFilter} onValueChange={(val) => {
                         setStatusFilter(val)
                         setCurrentPage(1)
                     }}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Status (Todos)" />
+                        <SelectTrigger className="w-full md:w-[160px]">
+                            <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">Todos</SelectItem>
+                            <SelectItem value="all">Todos Status</SelectItem>
                             <SelectItem value="pending">Pendente</SelectItem>
                             <SelectItem value="processing">Processando</SelectItem>
                             <SelectItem value="on_hold">Em espera</SelectItem>
@@ -238,11 +227,9 @@ export function OrdersPage() {
                             <SelectItem value="failed">Falhou</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Select value={localDateFilter} onValueChange={(val) => {
-                        setLocalDateFilter(val)
-                    }}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Data" />
+                    <Select value={localDateFilter} onValueChange={setLocalDateFilter}>
+                        <SelectTrigger className="w-full md:w-[160px]">
+                            <SelectValue placeholder="Período" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Todo o período</SelectItem>
@@ -270,7 +257,11 @@ export function OrdersPage() {
                         </div>
                     )}
 
-                    <Button onClick={() => handleApplyFilter(false)} disabled={isLoading}>
+                    <Button
+                        onClick={() => handleApplyFilter(false)}
+                        disabled={isLoading}
+                        className="bg-violet-600 hover:bg-violet-700 text-white"
+                    >
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                         Aplicar
                     </Button>
@@ -279,32 +270,30 @@ export function OrdersPage() {
                         setPaymentFilter(val)
                         setCurrentPage(1)
                     }}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full md:w-[160px]">
                             <SelectValue placeholder="Pagamento" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Todos</SelectItem>
-                            <SelectItem value="bacs">Transferência Bancária</SelectItem>
-                            <SelectItem value="cheque">Cheque</SelectItem>
-                            <SelectItem value="cod">Dinheiro na Entrega</SelectItem>
-                            <SelectItem value="paypal">PayPal</SelectItem>
-                            <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
+                            <SelectItem value="bacs">Transferência</SelectItem>
+                            <SelectItem value="cod">Dinheiro</SelectItem>
                             <SelectItem value="pix">PIX</SelectItem>
+                            <SelectItem value="credit_card">Cartão</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
 
-                <CardContent className="p-0">
+                <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow>
+                            <TableRow className="border-b border-gray-100 hover:bg-transparent">
                                 <TableHead className="w-[50px]"></TableHead>
-                                <TableHead>Pedido</TableHead>
-                                <TableHead>Data</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Total</TableHead>
-                                <TableHead>Pagamento</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
+                                <TableHead className="text-gray-500 font-medium">Pedido</TableHead>
+                                <TableHead className="text-gray-500 font-medium">Data</TableHead>
+                                <TableHead className="text-gray-500 font-medium">Status</TableHead>
+                                <TableHead className="text-gray-500 font-medium">Total</TableHead>
+                                <TableHead className="text-gray-500 font-medium">Pagamento</TableHead>
+                                <TableHead className="text-right text-gray-500 font-medium">Ações</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -316,41 +305,39 @@ export function OrdersPage() {
                                     const itemCount = order.line_items?.reduce((acc: number, item: any) => acc + item.quantity, 0) || 0
 
                                     return (
-                                        <TableRow key={order.id}>
+                                        <TableRow key={order.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                                             <TableCell>
                                                 <input type="checkbox" className="rounded border-gray-300" />
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 bg-gray-100 rounded flex items-center justify-center text-gray-500">
-                                                        <CheckCircle2 className="h-5 w-5" />
+                                                    <div className="h-10 w-10 bg-violet-100 rounded-lg flex items-center justify-center">
+                                                        <CheckCircle2 className="h-5 w-5 text-violet-600" />
                                                     </div>
                                                     <div>
-                                                        <div className="font-medium">Nº {order.id} - {order.billing.first_name} {order.billing.last_name}</div>
-                                                        <div className="text-xs text-muted-foreground">SKU: {order.line_items?.[0]?.sku || '-'}</div>
+                                                        <div className="font-medium text-gray-900">Nº {order.id}</div>
+                                                        <div className="text-xs text-gray-500">{order.billing.first_name} {order.billing.last_name}</div>
                                                     </div>
                                                 </div>
                                             </TableCell>
+                                            <TableCell className="text-gray-600">{date}</TableCell>
                                             <TableCell>
-                                                <div className="font-medium">{date}</div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary" className={statusColor}>
+                                                <Badge variant="secondary" className={`${statusColor} border-0`}>
                                                     {statusLabel}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="font-medium">{formatCurrency(parseFloat(order.total))}</div>
-                                                <div className="text-xs text-muted-foreground">{itemCount} itens</div>
+                                                <div className="font-semibold text-gray-900">{formatCurrency(parseFloat(order.total))}</div>
+                                                <div className="text-xs text-gray-500">{itemCount} itens</div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="font-medium">{order.payment_method_title}</div>
-                                                <div className="text-xs text-green-600">
+                                                <div className="font-medium text-gray-700">{order.payment_method_title}</div>
+                                                <div className="text-xs text-emerald-600">
                                                     {order.status === 'completed' || order.status === 'processing' ? 'Aprovado' : '-'}
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="outline" size="sm" className="h-8" onClick={() => {
+                                                <Button variant="outline" size="sm" className="h-8 border-gray-200 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200" onClick={() => {
                                                     alert(`Abrir pedido ${order.id} no WooCommerce`)
                                                 }}>
                                                     <Eye className="mr-2 h-3 w-3" />
@@ -362,18 +349,21 @@ export function OrdersPage() {
                                 })
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
-                                        Nenhum pedido encontrado.
+                                    <TableCell colSpan={7} className="text-center h-32 text-gray-400">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <ShoppingBag className="h-8 w-8 text-gray-300" />
+                                            <p>Nenhum pedido encontrado.</p>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
-                </CardContent>
+                </div>
 
                 {/* Pagination Controls */}
-                <div className="flex items-center justify-end space-x-2 py-4 px-4 border-t">
-                    <div className="flex-1 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between p-4 border-t border-gray-100">
+                    <div className="text-sm text-gray-500">
                         Página {currentPage} de {totalPages || 1}
                     </div>
                     <div className="space-x-2">
@@ -382,6 +372,7 @@ export function OrdersPage() {
                             size="sm"
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
+                            className="border-gray-200"
                         >
                             Anterior
                         </Button>
@@ -390,12 +381,13 @@ export function OrdersPage() {
                             size="sm"
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages || totalPages === 0}
+                            className="border-gray-200"
                         >
                             Próximo
                         </Button>
                     </div>
                 </div>
-            </Card>
+            </WidgetCard>
         </div>
     )
 }

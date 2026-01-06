@@ -1,15 +1,16 @@
 
 import { useState, useEffect } from "react"
 import { useData } from "@/context/DataContext"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Eye, Edit, Download, RefreshCw, CreditCard, TrendingUp } from "lucide-react"
+import { Eye, Edit, Download, RefreshCw, TrendingUp, Search, Users, UserPlus, Repeat, DollarSign } from "lucide-react"
 import { subDays, format, parseISO, differenceInDays } from "date-fns"
+import { StatCard } from "@/components/StatCard"
+import { WidgetCard } from "@/components/WidgetCard"
 
 export function CustomersPage() {
     const { data, syncCatalog, isLoading, credentials } = useData()
@@ -113,15 +114,19 @@ export function CustomersPage() {
     }
 
     return (
-        <div className="p-8 space-y-8">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+        <div className="p-6 md:p-8 space-y-6">
+            {/* Page Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Clientes</h1>
+                    <p className="text-gray-500 mt-1">Gerencie sua base de clientes</p>
+                </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => syncCatalog(credentials, true)} disabled={isLoading}>
+                    <Button variant="outline" className="border-gray-300 hover:bg-gray-50" onClick={() => syncCatalog(credentials, true)} disabled={isLoading}>
                         <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                         Sincronizar
                     </Button>
-                    <Button variant="default" className="bg-black hover:bg-gray-800">
+                    <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
                         <Download className="mr-2 h-4 w-4" />
                         Exportar
                     </Button>
@@ -129,68 +134,60 @@ export function CustomersPage() {
             </div>
 
             {/* Metrics Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
-                        <span className="text-muted-foreground">$</span>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{totalCustomers.toLocaleString('pt-BR')}</div>
-                        <p className="text-xs text-green-500">+180 novos este mês</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Novos Clientes (30d)</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{newCustomersCount}</div>
-                        <p className="text-xs text-green-500">+15% em relação ao mês anterior</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Clientes Recorrentes</CardTitle>
-                        <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{recurringCustomersCount}</div>
-                        <p className="text-xs text-muted-foreground">{(totalCustomers > 0 ? (recurringCustomersCount / totalCustomers * 100).toFixed(0) : 0)}% da base</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Ticket Médio por Cliente</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(averageTicket)}</div>
-                        <p className="text-xs text-green-500">+5% em relação ao ano anterior</p>
-                    </CardContent>
-                </Card>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard
+                    title="Total de Clientes"
+                    value={totalCustomers.toLocaleString('pt-BR')}
+                    change="+180"
+                    changeType="positive"
+                    subtitle="novos este mês"
+                    highlighted={true}
+                    icon={<Users className="h-5 w-5 text-violet-600" />}
+                />
+                <StatCard
+                    title="Novos Clientes (30d)"
+                    value={newCustomersCount.toString()}
+                    change="+15%"
+                    changeType="positive"
+                    subtitle="vs mês anterior"
+                    icon={<UserPlus className="h-5 w-5 text-gray-500" />}
+                />
+                <StatCard
+                    title="Clientes Recorrentes"
+                    value={recurringCustomersCount.toString()}
+                    subtitle={`${(totalCustomers > 0 ? (recurringCustomersCount / totalCustomers * 100).toFixed(0) : 0)}% da base`}
+                    icon={<Repeat className="h-5 w-5 text-gray-500" />}
+                />
+                <StatCard
+                    title="Ticket Médio"
+                    value={formatCurrency(averageTicket)}
+                    change="+5%"
+                    changeType="positive"
+                    subtitle="vs ano anterior"
+                    icon={<DollarSign className="h-5 w-5 text-gray-500" />}
+                />
             </div>
 
             {/* Filters and Table */}
-            <Card>
-                <div className="p-4 flex flex-col md:flex-row gap-4 border-b">
+            <WidgetCard noPadding>
+                <div className="p-4 flex flex-col md:flex-row gap-3 border-b border-gray-100">
                     <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
                             placeholder="Buscar por nome/email..."
                             value={searchTerm}
                             onChange={(e) => {
                                 setSearchTerm(e.target.value)
-                                setCurrentPage(1) // Reset to first page on search
+                                setCurrentPage(1)
                             }}
-                            className="w-full"
+                            className="w-full pl-9"
                         />
                     </div>
                     <Select value={segmentFilter} onValueChange={(val) => {
                         setSegmentFilter(val)
                         setCurrentPage(1)
                     }}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full md:w-[160px]">
                             <SelectValue placeholder="Segmento" />
                         </SelectTrigger>
                         <SelectContent>
@@ -203,8 +200,8 @@ export function CustomersPage() {
                         setStatusFilter(val)
                         setCurrentPage(1)
                     }}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Status (Ativo/Inativo)" />
+                        <SelectTrigger className="w-full md:w-[160px]">
+                            <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Todos</SelectItem>
@@ -214,18 +211,18 @@ export function CustomersPage() {
                     </Select>
                 </div>
 
-                <CardContent className="p-0">
+                <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow>
+                            <TableRow className="border-b border-gray-100 hover:bg-transparent">
                                 <TableHead className="w-[50px]"></TableHead>
-                                <TableHead>Cliente (Nome/Email)</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Última Compra</TableHead>
-                                <TableHead>Valor</TableHead>
-                                <TableHead>Total Gasto (LTV)</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
+                                <TableHead className="text-gray-500 font-medium">Cliente</TableHead>
+                                <TableHead className="text-gray-500 font-medium">Segmento</TableHead>
+                                <TableHead className="text-gray-500 font-medium">Última Compra</TableHead>
+                                <TableHead className="text-gray-500 font-medium">Valor</TableHead>
+                                <TableHead className="text-gray-500 font-medium">LTV</TableHead>
+                                <TableHead className="text-gray-500 font-medium">Status</TableHead>
+                                <TableHead className="text-right text-gray-500 font-medium">Ações</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -245,51 +242,44 @@ export function CustomersPage() {
                                     const ltv = calculateLTV(customer.id)
 
                                     return (
-                                        <TableRow key={customer.id}>
+                                        <TableRow key={customer.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                                             <TableCell>
                                                 <input type="checkbox" className="rounded border-gray-300" />
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
-                                                    <Avatar>
+                                                    <Avatar className="h-10 w-10 border-2 border-violet-100">
                                                         <AvatarImage src={customer.avatar_url} />
-                                                        <AvatarFallback>{getInitials(customer.first_name, customer.last_name)}</AvatarFallback>
+                                                        <AvatarFallback className="bg-violet-100 text-violet-600 font-semibold">
+                                                            {getInitials(customer.first_name, customer.last_name)}
+                                                        </AvatarFallback>
                                                     </Avatar>
                                                     <div>
-                                                        <div className="font-medium">{customer.first_name} {customer.last_name}</div>
-                                                        <div className="text-xs text-muted-foreground">{customer.email}</div>
+                                                        <div className="font-medium text-gray-900">{customer.first_name} {customer.last_name}</div>
+                                                        <div className="text-xs text-gray-500">{customer.email}</div>
                                                     </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant="secondary" className={status.color}>
+                                                <Badge variant="secondary" className={`${status.color} border-0`}>
                                                     {status.label}
                                                 </Badge>
                                             </TableCell>
+                                            <TableCell className="text-gray-600">{lastOrderDate}</TableCell>
+                                            <TableCell className="font-medium text-gray-900">{lastOrderValue}</TableCell>
+                                            <TableCell className="font-semibold text-gray-900">{formatCurrency(ltv)}</TableCell>
                                             <TableCell>
-                                                <div className="font-medium">{lastOrderDate}</div>
-                                                <div className="text-xs text-muted-foreground">Data</div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="font-medium">{lastOrderValue}</div>
-                                                <div className="text-xs text-muted-foreground">Valor</div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="font-medium">{formatCurrency(ltv)}</div>
-                                                <div className="text-xs text-muted-foreground">LTV</div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
                                                     Ativo
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    <Button variant="outline" size="sm" className="h-8">
+                                                    <Button variant="outline" size="sm" className="h-8 border-gray-200 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200">
                                                         <Eye className="mr-2 h-3 w-3" />
                                                         Ver
                                                     </Button>
-                                                    <Button variant="outline" size="sm" className="h-8">
+                                                    <Button variant="outline" size="sm" className="h-8 border-gray-200 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200">
                                                         <Edit className="mr-2 h-3 w-3" />
                                                         Editar
                                                     </Button>
@@ -300,18 +290,21 @@ export function CustomersPage() {
                                 })
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
-                                        Nenhum cliente encontrado.
+                                    <TableCell colSpan={8} className="text-center h-32 text-gray-400">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <Users className="h-8 w-8 text-gray-300" />
+                                            <p>Nenhum cliente encontrado.</p>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
-                </CardContent>
+                </div>
 
                 {/* Pagination Controls */}
-                <div className="flex items-center justify-end space-x-2 py-4 px-4 border-t">
-                    <div className="flex-1 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between p-4 border-t border-gray-100">
+                    <div className="text-sm text-gray-500">
                         Página {currentPage} de {totalPages || 1}
                     </div>
                     <div className="space-x-2">
@@ -320,6 +313,7 @@ export function CustomersPage() {
                             size="sm"
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
+                            className="border-gray-200"
                         >
                             Anterior
                         </Button>
@@ -328,12 +322,13 @@ export function CustomersPage() {
                             size="sm"
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages || totalPages === 0}
+                            className="border-gray-200"
                         >
                             Próximo
                         </Button>
                     </div>
                 </div>
-            </Card>
+            </WidgetCard>
         </div>
     )
 }

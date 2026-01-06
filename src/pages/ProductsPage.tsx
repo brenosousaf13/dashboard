@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useData } from "@/context/DataContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -272,8 +272,8 @@ export function ProductsPage() {
                                     const isLoadingVars = loadingVariations[product.id]
 
                                     return (
-                                        <>
-                                            <TableRow key={product.id} className={isExpanded ? "bg-muted/50" : ""}>
+                                        <React.Fragment key={product.id}>
+                                            <TableRow className={isExpanded ? "bg-muted/50" : ""}>
                                                 <TableCell>
                                                     {isVariable ? (
                                                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => toggleRow(product.id)}>
@@ -387,7 +387,7 @@ export function ProductsPage() {
                                                     </TableCell>
                                                 </TableRow>
                                             )}
-                                        </>
+                                        </React.Fragment>
                                     )
                                 })
                             ) : (
