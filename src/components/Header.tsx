@@ -3,12 +3,18 @@ import { NotificationBell } from "./NotificationBell"
 import { MessageIcon } from "./MessageIcon"
 import { UserMenu } from "./UserMenu"
 import { useData } from "../context/DataContext"
+import { useSidebar } from "../context/SidebarContext"
+import { cn } from "../lib/utils"
 
 export function Header() {
     const { storeName, logoUrl } = useData()
+    const { isCollapsed } = useSidebar()
 
     return (
-        <header className="fixed top-0 right-0 left-0 md:left-64 h-[70px] bg-white border-b border-gray-200 z-40 transition-all duration-300">
+        <header className={cn(
+            "fixed top-0 right-0 left-0 h-[70px] bg-white border-b border-gray-200 z-40 transition-all duration-300",
+            isCollapsed ? "md:left-20" : "md:left-64"
+        )}>
             <div className="flex items-center justify-between h-full px-4 md:px-6">
                 {/* Left side - Logo on mobile, Search on desktop */}
                 <div className="flex items-center gap-4">
